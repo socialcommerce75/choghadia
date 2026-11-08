@@ -202,6 +202,11 @@ struct TodayView: View {
                     .accessibilityHidden(true)
             }
 
+            TodayBackdropTint(minutes: TodayDemoData.nowMinutes)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
             ScrollViewReader { proxy in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
@@ -398,7 +403,7 @@ struct TodayView: View {
                             .font(.chBody(11))
                             .foregroundStyle(.white)
                         Text("Shubh from 12:52 PM")
-                            .font(.chBodyMedium(14))
+                            .font(.chBodySemibold(17))
                             .foregroundStyle(.white)
                     }
                     Spacer(minLength: 2)
@@ -427,7 +432,7 @@ struct TodayView: View {
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color(hex: "E9A7C3").opacity(0.35), lineWidth: 1)
+                        .stroke(Color.chSaffron.opacity(0.85), lineWidth: 1.5)
                 }
                 .padding(.top, 12)
             }
@@ -505,6 +510,50 @@ struct TodayView: View {
     }
 
     private func scrollTarget(for slotID: Int) -> String { "today-slot-\(slotID)" }
+}
+
+// MARK: - Background tint and vignette
+
+private struct TodayBackdropTint: View {
+    let minutes: Int
+
+    // Glow colour keyed to minutes since midnight; blended between neighbours.
+    private static let keys: [(minute: Int, color: UIColor)] = [
+        (0,    UIColor(red: 0.20, green: 0.17, blue: 0.50, alpha: 1)),  // deep indigo
+        (330,  UIColor(red: 0.20, green: 0.17, blue: 0.50, alpha: 1)),
+        (420,  UIColor(red: 0.96, green: 0.68, blue: 0.40, alpha: 1)),  // dawn gold
+        (720,  UIColor(red: 0.98, green: 0.78, blue: 0.45, alpha: 1)),  // midday warm
+        (1020, UIColor(red: 0.96, green: 0.58, blue: 0.40, alpha: 1)),  // late afternoon
+        (1110, UIColor(red: 0.89, green: 0.42, blue: 0.55, alpha: 1)),  // dusk rose
+        (1230, UIColor(red: 0.20, green: 0.17, blue: 0.50, alpha: 1)),  // night
+        (1440, UIColor(red: 0.20, green: 0.17, blue: 0.50, alpha: 1))
+    ]
+
+    private var glow: Color {
+        let m = minutes % 1440
+        guard let upper = Self.keys.firstIndex(where: { $0.minute >= m }), upper > 0 else {
+            return Color(Self.keys[0].color)
+        }
+        let a = Self.keys[upper - 1], b = Self.keys[upper]
+        let t = CGFloat(m - a.minute) / CGFloat(max(b.minute - a.minute, 1))
+        var (r1, g1, b1, r2, g2, b2): (CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0, 0, 0)
+        a.color.getRed(&r1, green: &g1, blue: &b1, alpha: nil)
+        b.color.getRed(&r2, green: &g2, blue: &b2, alpha: nil)
+        return Color(red: r1 + (r2 - r1) * t, green: g1 + (g2 - g1) * t, blue: b1 + (b2 - b1) * t)
+    }
+
+    var body: some View {
+        ZStack {
+            // Time-of-day wash, strongest at the top where the sky would be.
+            LinearGradient(colors: [glow.opacity(0.26), glow.opacity(0.06), .clear],
+                           startPoint: .top, endPoint: .center)
+            // Vignette so cards float above the artwork.
+            LinearGradient(colors: [Color.black.opacity(0.38), .clear],
+                           startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.22))
+            LinearGradient(colors: [.clear, Color.black.opacity(0.42)],
+                           startPoint: UnitPoint(x: 0.5, y: 0.72), endPoint: .bottom)
+        }
+    }
 }
 
 // MARK: - Reusable glass and status components
@@ -652,6 +701,8 @@ private struct SunArcView: View {
                             slot.label.color.opacity(opacity),
                             style: StrokeStyle(lineWidth: index == currentSlot ? 11 : 7, lineCap: .round)
                         )
+                        .shadow(color: index == currentSlot ? slot.label.color.opacity(0.75) : .clear,
+                                radius: index == currentSlot ? 8 : 0)
                         .animation(
                             reduceMotion ? nil : .easeOut(duration: 0.22).delay(Double(index) * 0.12),
                             value: arcDrawn
@@ -660,9 +711,22 @@ private struct SunArcView: View {
 
                 let angle = CGFloat.pi - sunProgress * CGFloat.pi
                 let sun = CGPoint(x: center.x + radius * cos(angle), y: center.y - radius * sin(angle))
+                SunTrailShape(progress: sunProgress)
+                    .stroke(
+                        LinearGradient(colors: [Color.chSaffron.opacity(0), Color.chSaffron.opacity(0.65)],
+                                       startPoint: .leading, endPoint: .trailing),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .blur(radius: 1.5)
+                    .animation(reduceMotion ? nil : .spring(response: 1.05, dampingFraction: 0.78).delay(0.10), value: sunProgress)
                 Circle()
-                    .fill(Color.chSaffron.opacity(pulse ? 0.18 : 0.10))
-                    .frame(width: 34, height: 34)
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.chSaffron.opacity(pulse ? 0.55 : 0.38), Color.chSaffron.opacity(0)],
+                            center: .center, startRadius: 2, endRadius: 30
+                        )
+                    )
+                    .frame(width: 60, height: 60)
                     .position(sun)
                     .animation(reduceMotion ? nil : .spring(response: 1.05, dampingFraction: 0.78).delay(0.10), value: sunProgress)
                 Circle()
@@ -686,6 +750,28 @@ private struct SunArcView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Daylight slots. Now Kaal, until 12:52 PM")
+    }
+}
+
+/// Soft trail along the arc from sunrise to the sun's current position.
+private struct SunTrailShape: Shape {
+    var progress: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.height * 0.92)
+        let radius = min(rect.width * 0.43, rect.height * 0.72)
+        var path = Path()
+        let steps = 48
+        for step in 0...steps {
+            let angle = CGFloat.pi - (CGFloat(step) / CGFloat(steps)) * progress * CGFloat.pi
+            let point = CGPoint(x: center.x + radius * cos(angle), y: center.y - radius * sin(angle))
+            step == 0 ? path.move(to: point) : path.addLine(to: point)
+        }
+        return path
     }
 }
 
