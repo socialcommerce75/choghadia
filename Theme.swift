@@ -14,6 +14,7 @@
 //                     Electric Cyan (#00E5FF) — Headline emphasis, active indicators.
 
 import SwiftUI
+import UIKit
 
 // MARK: - Colour tokens
 
@@ -93,23 +94,29 @@ extension Color {
 //   Body     → SF Pro (.default) — practically identical to Inter for UI text
 
 extension Font {
+    /// Scales a design-time point size with the user's Dynamic Type setting.
+    /// Headings scale against .title2, body text against .body.
+    private static func scaled(_ size: CGFloat, style: UIFont.TextStyle) -> CGFloat {
+        UIFontMetrics(forTextStyle: style).scaledValue(for: size)
+    }
+
     static func chHeading(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .regular, design: .serif)
+        .system(size: scaled(size, style: .title2), weight: .regular, design: .serif)
     }
     static func chHeadingBold(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .bold, design: .serif)
+        .system(size: scaled(size, style: .title2), weight: .bold, design: .serif)
     }
     static func chHeadingMedium(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .medium, design: .serif)
+        .system(size: scaled(size, style: .title2), weight: .medium, design: .serif)
     }
     static func chBody(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .regular)
+        .system(size: scaled(size, style: .body), weight: .regular)
     }
     static func chBodyMedium(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .medium)
+        .system(size: scaled(size, style: .body), weight: .medium)
     }
     static func chBodySemibold(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .semibold)
+        .system(size: scaled(size, style: .body), weight: .semibold)
     }
 }
 

@@ -12,7 +12,7 @@ struct MainTabView: View {
             Text("AI Assistance – coming soon")
                 .tabItem { Label("AI Assistance", systemImage: "sparkles") }
 
-            Text("Settings – coming soon")
+            SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
     }

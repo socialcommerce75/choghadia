@@ -6,12 +6,14 @@ import SwiftUI
 
 private enum DemoSlotLabel {
     case favourable
+    case mostFavorable
     case neutral
     case holdOff
 
     var title: String {
         switch self {
         case .favourable: "Favorable"
+        case .mostFavorable: "Most favorable"
         case .neutral: "Neutral"
         case .holdOff: "Hold off"
         }
@@ -20,6 +22,7 @@ private enum DemoSlotLabel {
     var symbol: String {
         switch self {
         case .favourable: "checkmark"
+        case .mostFavorable: "checkmark"
         case .neutral: "minus"
         case .holdOff: "xmark"
         }
@@ -28,6 +31,7 @@ private enum DemoSlotLabel {
     var color: Color {
         switch self {
         case .favourable: .chFavourable
+        case .mostFavorable: Color(hex: "167A4F")
         case .neutral: .chNeutral
         case .holdOff: .chHoldOff
         }
@@ -36,16 +40,36 @@ private enum DemoSlotLabel {
     var tint: Color {
         switch self {
         case .favourable: .chFavourableTint
+        case .mostFavorable: Color(hex: "CDEBDD")
         case .neutral: .chNeutralTint
         case .holdOff: .chHoldOffTint
+        }
+    }
+
+    var darkTint: Color {
+        switch self {
+        case .favourable: Color(hex: "123B35")
+        case .mostFavorable: Color(hex: "103A2B")
+        case .neutral: Color(hex: "3D3016")
+        case .holdOff: Color(hex: "45172B")
         }
     }
 
     var textColor: Color {
         switch self {
         case .favourable: .chFavourableText
+        case .mostFavorable: Color(hex: "145C3F")
         case .neutral: .chNeutralText
         case .holdOff: .chHoldOffText
+        }
+    }
+
+    var darkTextColor: Color {
+        switch self {
+        case .favourable: Color(hex: "7FE0C8")
+        case .mostFavorable: Color(hex: "7FE0A7")
+        case .neutral: Color(hex: "F2C66D")
+        case .holdOff: Color(hex: "FF9DB8")
         }
     }
 }
@@ -75,13 +99,13 @@ private enum TodayDemoData {
         .init(id: 0, name: "Udveg", start: "6:29 AM", end: "7:46 AM", startMinutes: 389, endMinutes: 466, label: .holdOff, meaning: "Restless energy. Routine work is fine; fresh starts are better left for later."),
         .init(id: 1, name: "Chal", start: "7:46 AM", end: "9:02 AM", startMinutes: 466, endMinutes: 542, label: .neutral, meaning: "Movement and change. A fair window for travel and errands."),
         .init(id: 2, name: "Labh", start: "9:02 AM", end: "10:19 AM", startMinutes: 542, endMinutes: 619, label: .favourable, meaning: "Gain and progress. A strong window for business and trade."),
-        .init(id: 3, name: "Amrit", start: "10:19 AM", end: "11:36 AM", startMinutes: 619, endMinutes: 696, label: .favourable, meaning: "The most supportive window of the day, good for almost anything."),
+        .init(id: 3, name: "Amrit", start: "10:19 AM", end: "11:36 AM", startMinutes: 619, endMinutes: 696, label: .mostFavorable, meaning: "The most supportive window of the day, good for almost anything."),
         .init(id: 4, name: "Kaal", start: "11:36 AM", end: "12:52 PM", startMinutes: 696, endMinutes: 772, label: .holdOff, meaning: "Heavy and slow. Things started here tend to drag."),
         .init(id: 5, name: "Shubh", start: "12:52 PM", end: "2:09 PM", startMinutes: 772, endMinutes: 849, label: .favourable, meaning: "Auspicious and steady. Good for commitments and purchases."),
         .init(id: 6, name: "Rog", start: "2:09 PM", end: "3:25 PM", startMinutes: 849, endMinutes: 925, label: .holdOff, meaning: "Strain and friction. Keep plans light."),
         .init(id: 7, name: "Udveg", start: "3:25 PM", end: "4:42 PM", startMinutes: 925, endMinutes: 1002, label: .holdOff, meaning: "Restless energy. Routine work is fine; fresh starts are better left for later."),
         .init(id: 8, name: "Shubh", start: "4:42 PM", end: "6:26 PM", startMinutes: 1002, endMinutes: 1106, label: .favourable, meaning: "Auspicious and steady. Good for commitments and purchases."),
-        .init(id: 9, name: "Amrit", start: "6:26 PM", end: "8:09 PM", startMinutes: 1106, endMinutes: 1209, label: .favourable, meaning: "The most supportive window of the day, good for almost anything."),
+        .init(id: 9, name: "Amrit", start: "6:26 PM", end: "8:09 PM", startMinutes: 1106, endMinutes: 1209, label: .mostFavorable, meaning: "The most supportive window of the day, good for almost anything."),
         .init(id: 10, name: "Chal", start: "8:09 PM", end: "9:53 PM", startMinutes: 1209, endMinutes: 1313, label: .neutral, meaning: "Movement and change. A fair window for travel and errands."),
         .init(id: 11, name: "Rog", start: "9:53 PM", end: "11:36 PM", startMinutes: 1313, endMinutes: 1416, label: .holdOff, meaning: "Strain and friction. Keep plans light."),
         .init(id: 12, name: "Kaal", start: "11:36 PM", end: "1:20 AM", startMinutes: 1416, endMinutes: 1520, label: .holdOff, meaning: "Heavy and slow. Things started here tend to drag."),
@@ -96,43 +120,6 @@ private enum TodayDemoData {
 
     static func currentRibbonPosition() -> CGFloat {
         CGFloat(nowMinutes - sunriseMinutes) / 1440
-    }
-}
-
-// MARK: - Local places
-
-private struct SavedPlace: Identifiable, Codable, Equatable {
-    var id: String { name + timeZoneID }
-    let name: String
-    let subtitle: String
-    let latitude: Double
-    let longitude: Double
-    let timeZoneID: String
-
-    static let storageKey = "choghadia.savedPlaces.v1"
-
-    static let cityDirectory: [SavedPlace] = [
-        .init(name: "Ahmedabad", subtitle: "Gujarat, India", latitude: 23.0225, longitude: 72.5714, timeZoneID: "Asia/Kolkata"),
-        .init(name: "Bengaluru", subtitle: "Karnataka, India", latitude: 12.9716, longitude: 77.5946, timeZoneID: "Asia/Kolkata"),
-        .init(name: "Boston", subtitle: "Massachusetts, United States", latitude: 42.3601, longitude: -71.0589, timeZoneID: "America/New_York"),
-        .init(name: "Chicago", subtitle: "Illinois, United States", latitude: 41.8781, longitude: -87.6298, timeZoneID: "America/Chicago"),
-        .init(name: "Delhi", subtitle: "India", latitude: 28.6139, longitude: 77.2090, timeZoneID: "Asia/Kolkata"),
-        .init(name: "London", subtitle: "United Kingdom", latitude: 51.5072, longitude: -0.1276, timeZoneID: "Europe/London"),
-        .init(name: "Los Angeles", subtitle: "California, United States", latitude: 34.0522, longitude: -118.2437, timeZoneID: "America/Los_Angeles"),
-        .init(name: "Mumbai", subtitle: "Maharashtra, India", latitude: 19.0760, longitude: 72.8777, timeZoneID: "Asia/Kolkata"),
-        .init(name: "New York", subtitle: "New York, United States", latitude: 40.7128, longitude: -74.0060, timeZoneID: "America/New_York"),
-        .init(name: "Toronto", subtitle: "Ontario, Canada", latitude: 43.6532, longitude: -79.3832, timeZoneID: "America/Toronto")
-    ]
-
-    static func load() -> [SavedPlace] {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let places = try? JSONDecoder().decode([SavedPlace].self, from: data) else { return [] }
-        return places
-    }
-
-    static func save(_ places: [SavedPlace]) {
-        guard let data = try? JSONEncoder().encode(places) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
     }
 }
 
@@ -181,16 +168,16 @@ private final class LocationAccess: NSObject, CLLocationManagerDelegate {
 // MARK: - Today screen
 
 struct TodayView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var location = LocationAccess()
-    @State private var savedPlaces = SavedPlace.load()
-    @State private var selectedPlace: SavedPlace?
+    @State private var placesStore = SavedPlacesStore.shared
     @State private var showingPlaces = false
     @State private var showingLocationAlert = false
     @State private var showingSlot: Int? = TodayDemoData.currentSlot
-    @State private var showEarlierSlots = true
+    @State private var showEarlierSlots = false
     @State private var autoScrolled = false
     @State private var pulse = false
     @State private var arcDrawn = false
@@ -208,6 +195,12 @@ struct TodayView: View {
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
                 .allowsHitTesting(false)
+
+            if colorScheme == .dark {
+                Color.chInk.opacity(0.12)
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+            }
 
             ScrollViewReader { proxy in
                     ScrollView {
@@ -260,9 +253,8 @@ struct TodayView: View {
                 }
         }
         .background(Color.chInk.ignoresSafeArea())
-        .preferredColorScheme(.dark)
         .sheet(isPresented: $showingPlaces) {
-            CityPickerSheet(savedPlaces: $savedPlaces, selectedPlace: $selectedPlace)
+            SavedPlacesSheet(store: placesStore)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
@@ -276,7 +268,6 @@ struct TodayView: View {
         } message: {
             Text("Choghadia uses your location to show timings for your area. You can also choose a city and keep using the app without location access.")
         }
-        .onChange(of: savedPlaces) { _, newValue in SavedPlace.save(newValue) }
         .onAppear {
             if shouldAnimateArcOnEntry {
                 shouldAnimateArcOnEntry = false
@@ -321,7 +312,7 @@ struct TodayView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "location.fill")
                             .font(.system(size: 11, weight: .semibold))
-                        Text(selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location"))
+                        Text(placesStore.selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location"))
                             .font(.chBodyMedium(13))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
@@ -331,7 +322,7 @@ struct TodayView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Location: \(selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location")). Change location")
+                .accessibilityLabel("Location: \(placesStore.selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location")). Change location")
             }
             Spacer()
         }
@@ -342,7 +333,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private var locationPrompt: some View {
-        if selectedPlace == nil && !location.isAuthorized {
+        if placesStore.selectedPlace == nil && !location.isAuthorized {
             LocationPromptCard(
                 isDenied: location.authorization == .denied || location.authorization == .restricted,
                 turnOn: {
@@ -417,14 +408,34 @@ struct TodayView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background {
+                    let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    shape
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            shape.fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(hex: "75435F").opacity(0.72),
+                                        Color(hex: "49304F").opacity(0.84)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color(hex: "E9A7C3").opacity(0.35), lineWidth: 1)
+                }
                 .padding(.top, 12)
             }
         }
     }
 
     private func timeline(proxy: ScrollViewProxy) -> some View {
-        GlassCard(cornerRadius: 24, padding: 11, tone: .recessed) {
+        GlassCard(cornerRadius: 24, padding: 11, tone: .heroWarm) {
             VStack(spacing: 0) {
                 Toggle(isOn: $showEarlierSlots) {
                     Text(showEarlierSlots ? "Hide earlier time slots" : "Show earlier time slots")
@@ -505,6 +516,7 @@ private enum GlassTone: Equatable {
 }
 
 private struct GlassCard<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
     let cornerRadius: CGFloat
     let padding: CGFloat
     var tone: GlassTone = .standard
@@ -526,7 +538,7 @@ private struct GlassCard<Content: View>: View {
                             )
                         )
                     }
-                    .overlay { shape.fill(Color.white.opacity(0.035)) }
+                    .overlay { shape.fill(Color.white.opacity(colorScheme == .dark ? 0 : 0.035)) }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -535,27 +547,32 @@ private struct GlassCard<Content: View>: View {
     }
 
     private var gradientColors: [Color] {
+        if colorScheme == .dark, tone != .heroWarm {
+            // Matches the prototype's dark glass: 7% white tint over a 16pt backdrop blur.
+            return [Color.white.opacity(0.07), Color.white.opacity(0.07)]
+        }
         switch tone {
         case .standard:
-            [Color(hex: "403568").opacity(0.52), Color(hex: "211B45").opacity(0.62)]
+            return [Color(hex: "403568").opacity(0.52), Color(hex: "211B45").opacity(0.62)]
         case .recessed:
-            [Color(hex: "110D29").opacity(0.86), Color(hex: "1B163B").opacity(0.85)]
+            return [Color(hex: "110D29").opacity(0.86), Color(hex: "1B163B").opacity(0.85)]
         case .heroWarm:
-            [Color(hex: "795B27").opacity(0.62), Color(hex: "382847").opacity(0.80)]
+            return [Color(hex: "795B27").opacity(0.62), Color(hex: "382847").opacity(0.80)]
         }
     }
 }
 
 private struct SlotStatusChip: View {
+    @Environment(\.colorScheme) private var colorScheme
     let label: DemoSlotLabel
 
     var body: some View {
         Label(label.title, systemImage: label.symbol)
             .font(.chBodyMedium(11))
-            .foregroundStyle(label.textColor)
+            .foregroundStyle(colorScheme == .dark ? label.darkTextColor : label.textColor)
             .padding(.horizontal, 9)
             .frame(minHeight: 27)
-            .background(label.tint, in: Capsule())
+            .background(colorScheme == .dark ? label.darkTint : label.tint, in: Capsule())
             .accessibilityElement(children: .combine)
     }
 }
@@ -587,14 +604,14 @@ private struct LocationPromptCard: View {
                         Text(isDenied ? "Turn on Location" : "Use my location")
                             .font(.chBodyMedium(12))
                             .foregroundStyle(Color.chInk)
-                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Color.chSaffron, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     Button(action: chooseCity) {
                         Text("Choose a city")
                             .font(.chBodyMedium(12))
                             .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.chCream.opacity(0.3), lineWidth: 1))
                     }
@@ -738,11 +755,11 @@ private struct DayRibbonCard: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .topLeading) {
                         Text("Now")
-                            .font(.chBodyMedium(10))
+                            .font(.chBodyMedium(11))
                             .foregroundStyle(.white)
                             .position(x: geometry.size.width * currentPosition, y: 7)
                         Text("Mon 9 Nov")
-                            .font(.chBodyMedium(10))
+                            .font(.chBodyMedium(11))
                             .foregroundStyle(.white)
                             .position(x: geometry.size.width * 0.73, y: 7)
 
@@ -822,7 +839,7 @@ private struct DayRibbonCard: View {
                     alignment: .leading,
                     spacing: 9
                 ) {
-                    legend("Most Favorable", color: Color(hex: "187A4B"))
+                    legend("Most favorable", color: Color(hex: "167A4F"))
                     legend("Favorable", color: .chFavourable)
                     legend("Neutral", color: .chNeutral)
                     legend("Hold off", color: .chHoldOff)
@@ -837,7 +854,7 @@ private struct DayRibbonCard: View {
 
     private func ribbonLabel(_ title: String) -> some View {
         Text(title)
-            .font(.chBody(10))
+            .font(.chBody(11))
             .foregroundStyle(.white)
             .fixedSize()
             .accessibilityHidden(true)
@@ -854,6 +871,7 @@ private struct DayRibbonCard: View {
 // MARK: - Timeline cards
 
 private struct TimelineSlotRow: View {
+    @Environment(\.colorScheme) private var colorScheme
     let slot: TodaySlot
     let isCurrent: Bool
     let isPast: Bool
@@ -882,11 +900,11 @@ private struct TimelineSlotRow: View {
                         HStack(spacing: 6) {
                             if isCurrent {
                                 Text("Now")
-                                    .font(.chBodyMedium(10))
-                                    .foregroundStyle(.white)
+                                    .font(.chBodyMedium(11))
+                                    .foregroundStyle(colorScheme == .dark ? Color.chInk : Color.white)
                                     .padding(.horizontal, 9)
                                     .frame(height: 22)
-                                    .background(Color.chInk, in: Capsule())
+                                    .background(colorScheme == .dark ? Color(hex: "EDE3D3") : Color.chInk, in: Capsule())
                             }
                             SlotStatusChip(label: slot.label)
                         }
@@ -923,7 +941,7 @@ private struct TimelineSlotRow: View {
                         .font(.chBodyMedium(12))
                         .foregroundStyle(Color.chText)
                         .padding(.horizontal, 13)
-                        .frame(minHeight: 38)
+                        .frame(minHeight: 44)
                         .background(Color.chGlassTitle, in: Capsule())
                     }
                     .buttonStyle(.plain)
@@ -935,16 +953,27 @@ private struct TimelineSlotRow: View {
         }
         .background {
             let shape = RoundedRectangle(cornerRadius: 17, style: .continuous)
+            let startColor: Color = if isCurrent {
+                Color(hex: "574367")
+            } else if isPast {
+                Color(hex: "302747")
+            } else {
+                Color(hex: "40365F")
+            }
+            let endColor: Color = if isCurrent {
+                Color(hex: "35284C")
+            } else if isPast {
+                Color(hex: "241E3C")
+            } else {
+                Color(hex: "2A2247")
+            }
+
             shape
                 .fill(.ultraThinMaterial)
                 .overlay {
                     shape.fill(
                         LinearGradient(
-                            colors: [
-                                Color(hex: "51476F").opacity(isCurrent ? 0.72 : 0.64),
-                                Color(hex: "393153").opacity(0.76),
-                                slot.label.color.opacity(isCurrent ? 0.20 : 0.16)
-                            ],
+                            colors: [startColor.opacity(0.94), endColor.opacity(0.96)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -953,12 +982,12 @@ private struct TimelineSlotRow: View {
                 .overlay {
                     shape.fill(
                         LinearGradient(
-                            colors: [Color.white.opacity(isCurrent ? 0.065 : 0.045), .clear],
+                            colors: [Color.white.opacity(isCurrent ? 0.05 : 0.025), .clear],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                }
+            }
         }
         .overlay(alignment: .leading) {
             UnevenRoundedRectangle(topLeadingRadius: 17, bottomLeadingRadius: 17)
@@ -970,13 +999,13 @@ private struct TimelineSlotRow: View {
             RoundedRectangle(cornerRadius: 17, style: .continuous)
                 .stroke(Color.chCream.opacity(isCurrent ? 0.34 : 0.21), lineWidth: 1)
         }
-        .opacity(isPast ? 0.62 : 1)
         .padding(.vertical, 2)
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }
 
 private struct TimelineBoundary: View {
+    @Environment(\.colorScheme) private var colorScheme
     let time: String
     let dotColor: Color
     let isCurrent: Bool
@@ -991,15 +1020,16 @@ private struct TimelineBoundary: View {
                 Circle().fill(dotColor).frame(width: 6, height: 6)
                 Text(time)
                     .font(.chBodyMedium(11))
-                    .foregroundStyle(Color.chText)
+                    .foregroundStyle(colorScheme == .dark ? Color(hex: "F2ECE1") : Color.chText)
             }
             .padding(.horizontal, 10)
             .frame(height: 22)
-            .background(Color.chGlassTitle, in: Capsule())
+            .background(colorScheme == .dark ? Color(hex: "221C46") : Color.chGlassTitle, in: Capsule())
             .overlay {
-                if isCurrent {
-                    Capsule().stroke(Color.chSaffron.opacity(0.55), lineWidth: 1)
-                }
+                Capsule().stroke(
+                    isCurrent ? Color.chSaffron.opacity(0.55) : (colorScheme == .dark ? Color(hex: "342D5E") : Color.chBorder),
+                    lineWidth: 1
+                )
             }
             .accessibilityHidden(true)
             connector(isSolid: bottomIsPast)
@@ -1024,10 +1054,9 @@ private struct TimelineBoundary: View {
 
 // MARK: - City picker
 
-private struct CityPickerSheet: View {
+struct SavedPlacesSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var savedPlaces: [SavedPlace]
-    @Binding var selectedPlace: SavedPlace?
+    let store: SavedPlacesStore
     @State private var search = ""
 
     private var results: [SavedPlace] {
@@ -1039,21 +1068,19 @@ private struct CityPickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                if !savedPlaces.isEmpty {
+                if !store.places.isEmpty {
                     Section("Saved places") {
-                        ForEach(savedPlaces) { place in
+                        ForEach(store.places) { place in
                             placeRow(place, isSaved: true)
                         }
                         .onDelete { offsets in
-                            let removingCurrent = offsets.contains { savedPlaces[$0] == selectedPlace }
-                            savedPlaces.remove(atOffsets: offsets)
-                            if removingCurrent { selectedPlace = nil }
+                            store.remove(at: offsets)
                         }
                     }
                 }
 
                 Section("Choose a city") {
-                    ForEach(results.filter { place in !savedPlaces.contains(where: { $0.id == place.id }) }) { place in
+                    ForEach(results.filter { place in !store.places.contains(where: { $0.id == place.id }) }) { place in
                         placeRow(place, isSaved: false)
                     }
                 }
@@ -1068,13 +1095,11 @@ private struct CityPickerSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func placeRow(_ place: SavedPlace, isSaved: Bool) -> some View {
         Button {
-            if !isSaved { savedPlaces.append(place) }
-            selectedPlace = place
+            store.select(place, saveIfNeeded: !isSaved)
             dismiss()
         } label: {
             HStack(spacing: 12) {
@@ -1086,7 +1111,7 @@ private struct CityPickerSheet: View {
                     Text(place.subtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if selectedPlace?.id == place.id {
+                if store.selectedPlace?.id == place.id {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.chFavourable)
                 }
             }
@@ -1094,6 +1119,6 @@ private struct CityPickerSheet: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(Color.chInk.opacity(0.65))
-        .accessibilityLabel("Use and save \(place.name), \(place.subtitle)")
+        .accessibilityLabel("Use \(place.name), \(place.subtitle)\(isSaved ? "" : ", and save it")")
     }
 }

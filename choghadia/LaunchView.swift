@@ -17,6 +17,7 @@ struct LaunchView: View {
 
             // ── Floating planet illustrations ─────────────────────────────────
             FloatingPlanetsLayer()
+                .accessibilityHidden(true)
 
             // ── Content column ───────────────────────────────────────────────
             VStack(alignment: .leading, spacing: 0) {
@@ -150,6 +151,7 @@ private struct FloatingPlanet: View {
     let config: FloatingPlanetsLayer.PlanetConfig
     let bounds: CGSize
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var position: CGPoint = .zero
 
     // Keep orbs away from screen edges
@@ -188,7 +190,7 @@ private struct FloatingPlanet: View {
                     .foregroundStyle(config.color.opacity(0.9))
             }
             Text(config.name)
-                .font(.system(size: 7, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(config.color.opacity(0.6))
                 .tracking(0.8)
         }
@@ -202,6 +204,8 @@ private struct FloatingPlanet: View {
             )
         }
         .task {
+            // Reduce Motion: planets stay at their starting positions.
+            guard !reduceMotion else { return }
             // Stagger start across planets
             try? await Task.sleep(for: .seconds(config.phase))
             while !Task.isCancelled {
