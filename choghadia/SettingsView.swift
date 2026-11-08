@@ -15,8 +15,18 @@ struct SettingsView: View {
     @State private var placesStore = SavedPlacesStore.shared
     @AppStorage("choghadia.preferredLanguage.v1") private var preferredLanguage = "en"
     @AppStorage("choghadia.appearance.v1") private var appearance = "dark"
+    #if DEBUG
+    // Debug only: `-dest language|signIn|privacy|terms|contact|savedPlaces` and `-plus` open a sheet at launch.
+    @State private var destination: SettingsDestination? = {
+        let a = ProcessInfo.processInfo.arguments
+        if let i = a.firstIndex(of: "-dest"), i + 1 < a.count { return SettingsDestination(rawValue: a[i + 1]) }
+        return nil
+    }()
+    @State private var showingPlus = ProcessInfo.processInfo.arguments.contains("-plus")
+    #else
     @State private var destination: SettingsDestination?
     @State private var showingPlus = false
+    #endif
 
     private var languageName: String {
         LanguageChoice.all.first(where: { $0.id == preferredLanguage })?.name ?? "English"
@@ -30,6 +40,7 @@ struct SettingsView: View {
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
 
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header
@@ -49,7 +60,7 @@ struct SettingsView: View {
                         SettingsMenuRow(
                             symbol: "globe",
                             title: "Language",
-                            subtitle: "Choose your preferred language",
+                            subtitle: "Choose your language",
                             value: languageName,
                             action: { destination = .language }
                         )
@@ -102,6 +113,17 @@ struct SettingsView: View {
             }
             .safeAreaPadding(.top, 28)
             .scrollIndicators(.hidden)
+            .onAppear {
+                #if DEBUG
+                // Debug only: `-scrollBottom` jumps to the footer for screenshots.
+                if ProcessInfo.processInfo.arguments.contains("-scrollBottom") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        proxy.scrollTo("settings-footer", anchor: UnitPoint(x: 0.5, y: 0.93))
+                    }
+                }
+                #endif
+            }
+            }
         }
         .background(Color.chInk.ignoresSafeArea())
         .sheet(item: $destination) { destination in
@@ -112,11 +134,11 @@ struct SettingsView: View {
                     .presentationDragIndicator(.visible)
             case .language:
                 LanguagePickerSheet(selection: $preferredLanguage)
-                    .presentationDetents([.medium, .large])
+                    .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             case .signIn:
                 SignInOptionsSheet()
-                    .presentationDetents([.height(390)])
+                    .presentationDetents([.height(330)])
                     .presentationDragIndicator(.visible)
             case .privacy:
                 SettingsInfoSheet(kind: .privacy)
@@ -246,27 +268,65 @@ struct SettingsView: View {
 
     private var appFooter: some View {
         SettingsFooterCard {
-            VStack(spacing: 5) {
-                Image("SettingsAppLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 54, height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                    .padding(.bottom, 2)
+            VStack(spacing: 0) {
+                // Logo with a soft saffron halo.
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.chSaffron.opacity(0.45), Color.chSaffron.opacity(0)],
+                                center: .center, startRadius: 4, endRadius: 56
+                            )
+                        )
+                        .frame(width: 112, height: 112)
+                    Image("SettingsAppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .stroke(Color.chCream.opacity(0.35), lineWidth: 1)
+                        )
+                        .shadow(color: Color.chSaffron.opacity(0.35), radius: 12, y: 4)
+                }
+                .accessibilityHidden(true)
+
                 Text("Choghadia")
-                    .font(.chHeadingMedium(20))
+                    .font(.chHeadingMedium(24))
                     .foregroundStyle(Color.chGlassTitle)
-                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
-                    .font(.chBody(12))
-                    .foregroundStyle(Color.chGlassNote)
+                    .padding(.top, 2)
+
+                // Decorative strip echoing the app icon's eight slot colours.
+                HStack(spacing: 5) {
+                    ForEach(Array(["3FBF9F", "E26A8D", "E26A8D", "C99A1E", "3FBF9F", "3FBF9F", "E26A8D", "3FBF9F"].enumerated()), id: \.offset) { _, hex in
+                        Capsule()
+                            .fill(Color(hex: hex))
+                            .frame(width: 18, height: 5)
+                    }
+                }
+                .padding(.top, 10)
+                .accessibilityHidden(true)
+
                 Text("Timings from your own sunrise and sunset.")
-                    .font(.chBody(12))
-                    .foregroundStyle(Color.chGlassNote)
+                    .font(.chBody(13))
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
+                    .padding(.top, 12)
+
+                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                    .font(.chBodyMedium(11))
+                    .foregroundStyle(Color.chSaffron)
+                    .padding(.horizontal, 11)
+                    .frame(minHeight: 24)
+                    .background(Color.chSaffron.opacity(0.14), in: Capsule())
+                    .overlay(Capsule().stroke(Color.chSaffron.opacity(0.4), lineWidth: 1))
+                    .padding(.top, 12)
             }
             .frame(maxWidth: .infinity)
         }
         .padding(.top, 2)
+        .id("settings-footer")
     }
 }
 
@@ -304,13 +364,13 @@ private struct SettingsGlassPanel<Content: View>: View {
                 .overlay {
                     shape.fill(
                         LinearGradient(
-                            colors: [Color(hex: "403568").opacity(0.78), Color(hex: "211B45").opacity(0.91)],
+                            colors: [Color(hex: "33285D").opacity(0.97), Color(hex: "181330").opacity(0.98)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                 }
-                .overlay { shape.fill(Color.white.opacity(0.035)) }
+                
         }
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -329,17 +389,24 @@ private struct SettingsFooterCard<Content: View>: View {
             .background {
                 let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
                 shape
-                    .fill(.ultraThinMaterial)
+                    .fill(Color(hex: "181330"))
                     .overlay {
                         shape.fill(
                             LinearGradient(
-                                colors: [Color(hex: "352A59").opacity(0.70), Color(hex: "17112F").opacity(0.82)],
+                                colors: [Color(hex: "33285D").opacity(0.97), Color(hex: "181330").opacity(0.98)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                     }
-                    .overlay { shape.fill(Color.white.opacity(0.045)) }
+                    .overlay {
+                        shape.fill(
+                            RadialGradient(
+                                colors: [Color(hex: "5A48A8").opacity(0.30), .clear],
+                                center: .top, startRadius: 4, endRadius: 240
+                            )
+                        )
+                    }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -435,7 +502,6 @@ private struct LanguagePickerSheet: View {
                     ForEach(LanguageChoice.all) { choice in
                         Button {
                             selection = choice.id
-                            dismiss()
                         } label: {
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 3) {
@@ -445,6 +511,9 @@ private struct LanguagePickerSheet: View {
                                     Text(choice.nativeName)
                                         .font(.chBody(12))
                                         .foregroundStyle(Color.chGlassTitle)
+                                        // Indic scripts need ~1.5–1.6 line height.
+                                        .lineSpacing(choice.id == "en" ? 0 : 6)
+                                        .frame(minHeight: choice.id == "en" ? 0 : 20, alignment: .leading)
                                 }
                                 Spacer()
                                 if choice.id == selection {
@@ -472,6 +541,8 @@ private struct LanguagePickerSheet: View {
                         Text("\(selectedChoice.todayPreview) · \(selectedChoice.nowPreview)")
                             .font(.chHeadingMedium(22))
                             .foregroundStyle(.white)
+                            .lineSpacing(selection == "en" ? 0 : 10)
+                            .frame(minHeight: selection == "en" ? 0 : 36, alignment: .leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(15)
@@ -485,7 +556,7 @@ private struct LanguagePickerSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, CH.pagePadding)
-                .padding(.bottom, 24)
+                .padding(.bottom, 64)
             }
             .scrollIndicators(.hidden)
             .background(Color.chInk)
@@ -665,9 +736,6 @@ private struct SignInOptionsSheet: View {
                 Text("Continue with \(title)")
                     .font(.chBodySemibold(14))
                 Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .opacity(0.65)
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 15)

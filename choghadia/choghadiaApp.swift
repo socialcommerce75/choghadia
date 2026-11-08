@@ -11,6 +11,10 @@ import SwiftUI
 struct choghadiaApp: App {
     @State private var appState = AppState()
 
+    init() {
+        FontRegistry.register()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

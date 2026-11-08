@@ -174,7 +174,11 @@ struct TodayView: View {
 
     @State private var location = LocationAccess()
     @State private var placesStore = SavedPlacesStore.shared
+    #if DEBUG
+    @State private var showingPlaces = ProcessInfo.processInfo.arguments.contains("-showPlaces")
+    #else
     @State private var showingPlaces = false
+    #endif
     @State private var showingLocationAlert = false
     @State private var showingSlot: Int? = TodayDemoData.currentSlot
     @State private var showEarlierSlots = false
@@ -213,20 +217,20 @@ struct TodayView: View {
                             header
                             locationPrompt
                                 .padding(.horizontal, pageInset)
-                                .padding(.top, 8)
+                                .padding(.top, 12)
                             heroCard
                                 .padding(.horizontal, pageInset)
-                                .padding(.top, 8)
+                                .padding(.top, 12)
                             DayRibbonCard(
                                 selectedSlot: showingSlot ?? TodayDemoData.currentSlot,
                                 pulse: pulse,
                                 onSelect: { slot in selectSlot(slot, proxy: proxy) }
                             )
                             .padding(.horizontal, pageInset)
-                            .padding(.top, 14)
+                            .padding(.top, 20)
                             timeline(proxy: proxy)
                                 .padding(.horizontal, pageInset)
-                                .padding(.top, 14)
+                                .padding(.top, 20)
                             // Keep the final slot and its boundary above the floating tab bar.
                             Color.clear.frame(height: 120)
                         }
@@ -306,28 +310,33 @@ struct TodayView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 4) {
+        let placeName = placesStore.selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location")
+        return HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(TodayDemoData.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
-                    .font(.chHeadingMedium(23))
-                    .foregroundStyle(.white)
+                    .font(.chHeading(18))
+                    .foregroundStyle(.white.opacity(0.88))
                 Button {
                     showingPlaces = true
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "location.fill")
                             .font(.system(size: 11, weight: .semibold))
-                        Text(placesStore.selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location"))
+                        Text(placeName)
                             .font(.chBodyMedium(13))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.chSaffron)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 32)
+                    .background(Color.chSaffron.opacity(0.16), in: Capsule())
+                    .overlay(Capsule().stroke(Color.chSaffron.opacity(0.55), lineWidth: 1))
                     .frame(minHeight: CH.minTarget)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Location: \(placesStore.selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location")). Change location")
+                .accessibilityLabel("Location: \(placeName). Change location")
             }
             Spacer()
         }
@@ -354,7 +363,7 @@ struct TodayView: View {
     }
 
     private var heroCard: some View {
-        GlassCard(cornerRadius: 22, padding: 17, tone: .heroWarm) {
+        GlassCard(cornerRadius: 22, padding: 17, tone: .heroPurple) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Text("Right now")
@@ -440,7 +449,7 @@ struct TodayView: View {
     }
 
     private func timeline(proxy: ScrollViewProxy) -> some View {
-        GlassCard(cornerRadius: 24, padding: 11, tone: .heroWarm) {
+        GlassCard(cornerRadius: 24, padding: 11, tone: .heroPurple) {
             VStack(spacing: 0) {
                 Toggle(isOn: $showEarlierSlots) {
                     Text(showEarlierSlots ? "Hide earlier time slots" : "Show earlier time slots")
@@ -515,7 +524,9 @@ struct TodayView: View {
 // MARK: - Background tint and vignette
 
 private struct TodayBackdropTint: View {
+    @Environment(\.colorScheme) private var colorScheme
     let minutes: Int
+    private var isLight: Bool { colorScheme == .light }
 
     // Glow colour keyed to minutes since midnight; blended between neighbours.
     private static let keys: [(minute: Int, color: UIColor)] = [
@@ -545,12 +556,12 @@ private struct TodayBackdropTint: View {
     var body: some View {
         ZStack {
             // Time-of-day wash, strongest at the top where the sky would be.
-            LinearGradient(colors: [glow.opacity(0.26), glow.opacity(0.06), .clear],
+            LinearGradient(colors: [glow.opacity(isLight ? 0.08 : 0.26), glow.opacity(isLight ? 0.02 : 0.06), .clear],
                            startPoint: .top, endPoint: .center)
             // Vignette so cards float above the artwork.
-            LinearGradient(colors: [Color.black.opacity(0.38), .clear],
+            LinearGradient(colors: [Color.black.opacity(isLight ? 0.10 : 0.38), .clear],
                            startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.22))
-            LinearGradient(colors: [.clear, Color.black.opacity(0.42)],
+            LinearGradient(colors: [.clear, Color.black.opacity(isLight ? 0.12 : 0.42)],
                            startPoint: UnitPoint(x: 0.5, y: 0.72), endPoint: .bottom)
         }
     }
@@ -562,6 +573,7 @@ private enum GlassTone: Equatable {
     case standard
     case recessed
     case heroWarm
+    case heroPurple
 }
 
 private struct GlassCard<Content: View>: View {
@@ -588,6 +600,19 @@ private struct GlassCard<Content: View>: View {
                         )
                     }
                     .overlay { shape.fill(Color.white.opacity(colorScheme == .dark ? 0 : 0.035)) }
+                    .overlay {
+                        // Soft saffron light from the upper right on the hero card.
+                        if tone == .heroPurple {
+                            shape.fill(
+                                RadialGradient(
+                                    colors: [Color.chSaffron.opacity(0.30), Color.chSaffron.opacity(0.08), .clear],
+                                    center: .topTrailing,
+                                    startRadius: 4,
+                                    endRadius: 300
+                                )
+                            )
+                        }
+                    }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -596,7 +621,7 @@ private struct GlassCard<Content: View>: View {
     }
 
     private var gradientColors: [Color] {
-        if colorScheme == .dark, tone != .heroWarm {
+        if colorScheme == .dark, tone != .heroWarm, tone != .heroPurple {
             // Matches the prototype's dark glass: 7% white tint over a 16pt backdrop blur.
             return [Color.white.opacity(0.07), Color.white.opacity(0.07)]
         }
@@ -607,6 +632,8 @@ private struct GlassCard<Content: View>: View {
             return [Color(hex: "110D29").opacity(0.86), Color(hex: "1B163B").opacity(0.85)]
         case .heroWarm:
             return [Color(hex: "795B27").opacity(0.62), Color(hex: "382847").opacity(0.80)]
+        case .heroPurple:
+            return [Color(hex: "281F4F").opacity(0.97), Color(hex: "130F2B").opacity(0.98)]
         }
     }
 }
@@ -912,13 +939,13 @@ private struct DayRibbonCard: View {
 
                 GeometryReader { geometry in
                     ZStack {
-                        ribbonLabel("Morning").position(x: geometry.size.width * 0.115, y: 8)
-                        ribbonLabel("Afternoon").position(x: geometry.size.width * 0.33, y: 8)
-                        ribbonLabel("Evening").position(x: geometry.size.width * 0.495, y: 8)
-                        ribbonLabel("Night").position(x: geometry.size.width * 0.78, y: 8)
+                        ribbonIcon("sunrise.fill", color: Color(hex: "FFD166")).position(x: geometry.size.width * 0.115, y: 9)
+                        ribbonIcon("sun.max.fill", color: Color(hex: "FFD166")).position(x: geometry.size.width * 0.33, y: 9)
+                        ribbonIcon("sunset.fill", color: Color(hex: "F6AE60")).position(x: geometry.size.width * 0.495, y: 9)
+                        ribbonIcon("moon.fill", color: Color(hex: "E6DAF0")).position(x: geometry.size.width * 0.78, y: 9)
                     }
                 }
-                .frame(height: 16)
+                .frame(height: 18)
 
                 LazyVGrid(
                     columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
@@ -938,10 +965,11 @@ private struct DayRibbonCard: View {
         }
     }
 
-    private func ribbonLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.chBody(11))
-            .foregroundStyle(.white)
+    /// Phase-of-day icon under the ribbon. Decorative: the ribbon itself is the VoiceOver element.
+    private func ribbonIcon(_ symbol: String, color: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(color)
             .fixedSize()
             .accessibilityHidden(true)
     }
@@ -987,10 +1015,10 @@ private struct TimelineSlotRow: View {
                             if isCurrent {
                                 Text("Now")
                                     .font(.chBodyMedium(11))
-                                    .foregroundStyle(colorScheme == .dark ? Color.chInk : Color.white)
+                                    .foregroundStyle(Color.chInk)
                                     .padding(.horizontal, 9)
                                     .frame(height: 22)
-                                    .background(colorScheme == .dark ? Color(hex: "EDE3D3") : Color.chInk, in: Capsule())
+                                    .background(Color(hex: "EDE3D3"), in: Capsule())
                             }
                             SlotStatusChip(label: slot.label)
                         }
@@ -1002,7 +1030,7 @@ private struct TimelineSlotRow: View {
                 }
                 .padding(.leading, 16)
                 .padding(.trailing, 9)
-                .padding(.vertical, 11)
+                .padding(.vertical, isCurrent ? 15 : 11)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
@@ -1073,7 +1101,18 @@ private struct TimelineSlotRow: View {
                             endPoint: .bottomTrailing
                         )
                     )
-            }
+                }
+                // Faint wash in the slot's band colour.
+                .overlay { shape.fill(slot.label.color.opacity(isCurrent ? 0.10 : 0.065)) }
+                // Warm inner glow for the current slot.
+                .overlay {
+                    if isCurrent {
+                        shape
+                            .stroke(Color.chSaffron.opacity(0.5), lineWidth: 8)
+                            .blur(radius: 9)
+                            .clipShape(shape)
+                    }
+                }
         }
         .overlay(alignment: .leading) {
             UnevenRoundedRectangle(topLeadingRadius: 17, bottomLeadingRadius: 17)
@@ -1083,7 +1122,7 @@ private struct TimelineSlotRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(Color.chCream.opacity(isCurrent ? 0.34 : 0.21), lineWidth: 1)
+                .stroke(Color.chCream.opacity(isCurrent ? 0.22 : 0.21), lineWidth: 1)
         }
         .padding(.vertical, 2)
         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -1142,8 +1181,11 @@ private struct TimelineBoundary: View {
 
 struct SavedPlacesSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     let store: SavedPlacesStore
     @State private var search = ""
+
+    private var isLight: Bool { colorScheme == .light }
 
     private var results: [SavedPlace] {
         let source = SavedPlace.cityDirectory
@@ -1172,6 +1214,16 @@ struct SavedPlacesSheet: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(isLight ? .hidden : .automatic)
+            .background {
+                if isLight {
+                    LinearGradient(
+                        colors: [Color(hex: "2B2552"), Color(hex: "1F1A3D"), Color(hex: "14102B")],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                }
+            }
             .navigationTitle("Saved places")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $search, prompt: "Search cities")
@@ -1181,6 +1233,7 @@ struct SavedPlacesSheet: View {
                 }
             }
         }
+        .preferredColorScheme(isLight ? .dark : nil)
     }
 
     private func placeRow(_ place: SavedPlace, isSaved: Bool) -> some View {
@@ -1204,7 +1257,7 @@ struct SavedPlacesSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(Color.chInk.opacity(0.65))
+        .listRowBackground(isLight ? Color.white.opacity(0.08) : Color.chInk.opacity(0.65))
         .accessibilityLabel("Use \(place.name), \(place.subtitle)\(isSaved ? "" : ", and save it")")
     }
 }

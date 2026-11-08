@@ -15,6 +15,7 @@
 
 import SwiftUI
 import UIKit
+import CoreText
 
 // MARK: - Colour tokens
 
@@ -93,30 +94,61 @@ extension Color {
 //   Headings → New York (.serif) — built-in optical-size serif, closest to Fraunces
 //   Body     → SF Pro (.default) — practically identical to Inter for UI text
 
+enum FontRegistry {
+    /// Registers the bundled variable fonts (Fraunces, Inter) for this process.
+    static func register() {
+        for name in ["Fraunces", "Inter"] {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
+}
+
 extension Font {
-    /// Scales a design-time point size with the user's Dynamic Type setting.
-    /// Headings scale against .title2, body text against .body.
-    private static func scaled(_ size: CGFloat, style: UIFont.TextStyle) -> CGFloat {
-        UIFontMetrics(forTextStyle: style).scaledValue(for: size)
+    /// Bundled family at a design-time size, scaled with Dynamic Type.
+    /// Falls back to the system font if the family is unavailable.
+    private static func brand(_ family: String, _ size: CGFloat, _ weight: UIFont.Weight,
+                              style: UIFont.TextStyle, fallbackDesign: Font.Design) -> Font {
+        let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: size)
+        let descriptor = UIFontDescriptor(fontAttributes: [
+            .family: family,
+            .traits: [UIFontDescriptor.TraitKey.weight: weight.rawValue]
+        ])
+        let uiFont = UIFont(descriptor: descriptor, size: scaled)
+        guard uiFont.familyName == family else {
+            return .system(size: scaled, weight: Font.Weight(weight), design: fallbackDesign)
+        }
+        return Font(uiFont)
     }
 
     static func chHeading(_ size: CGFloat) -> Font {
-        .system(size: scaled(size, style: .title2), weight: .regular, design: .serif)
+        brand("Fraunces", size, .regular, style: .title2, fallbackDesign: .serif)
     }
     static func chHeadingBold(_ size: CGFloat) -> Font {
-        .system(size: scaled(size, style: .title2), weight: .bold, design: .serif)
+        brand("Fraunces", size, .bold, style: .title2, fallbackDesign: .serif)
     }
     static func chHeadingMedium(_ size: CGFloat) -> Font {
-        .system(size: scaled(size, style: .title2), weight: .medium, design: .serif)
+        brand("Fraunces", size, .medium, style: .title2, fallbackDesign: .serif)
     }
     static func chBody(_ size: CGFloat) -> Font {
-        .system(size: scaled(size, style: .body), weight: .regular)
+        brand("Inter", size, .regular, style: .body, fallbackDesign: .default)
     }
     static func chBodyMedium(_ size: CGFloat) -> Font {
-        .system(size: scaled(size, style: .body), weight: .medium)
+        brand("Inter", size, .medium, style: .body, fallbackDesign: .default)
     }
     static func chBodySemibold(_ size: CGFloat) -> Font {
-        .system(size: scaled(size, style: .body), weight: .semibold)
+        brand("Inter", size, .semibold, style: .body, fallbackDesign: .default)
+    }
+}
+
+private extension Font.Weight {
+    init(_ weight: UIFont.Weight) {
+        switch weight {
+        case .bold: self = .bold
+        case .semibold: self = .semibold
+        case .medium: self = .medium
+        default: self = .regular
+        }
     }
 }
 

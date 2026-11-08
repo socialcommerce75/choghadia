@@ -36,7 +36,7 @@ struct ChoghadiaPlusView: View {
                         .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 16)
-                    Text("The AI guide answers questions about your day in seconds, at any hour.")
+                    Text("Instant answers about your day, any hour.")
                         .font(.chBody(14))
                         .foregroundStyle(Color.chGlassTitle)
                         .fixedSize(horizontal: false, vertical: true)
@@ -48,12 +48,13 @@ struct ChoghadiaPlusView: View {
                         .padding(.top, 13)
                     planPicker
                         .padding(.top, 17)
-                    Text("Sample pricing from the prototype. Subscriptions are not connected yet.")
+                    Text("Choghadia Plus renews automatically at \(selectedPlan.price) \(selectedPlan.billing) unless you cancel at least 24 hours before the end of the current period. Payment is charged to your Apple ID when you confirm the purchase. You can manage or cancel your subscription any time in your Apple ID account settings.")
                         .font(.chBody(11))
-                        .foregroundStyle(Color.chGlassNote)
+                        .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 11)
                         .padding(.bottom, 24)
+
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 12)
@@ -78,8 +79,14 @@ struct ChoghadiaPlusView: View {
             }
             .padding(.horizontal, 22)
             .padding(.top, 10)
-            .background(.ultraThinMaterial)
-            .background(Color.chInk.opacity(0.82))
+            .background(alignment: .top) { Color.chInk.ignoresSafeArea(edges: .bottom) }
+            .overlay(alignment: .top) {
+                // Soft fade so scrolling content doesn't end on a hard edge.
+                LinearGradient(colors: [Color.chInk.opacity(0), Color.chInk], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 20)
+                    .offset(y: -20)
+                    .allowsHitTesting(false)
+            }
         }
         .preferredColorScheme(.dark)
         .alert("Subscriptions are not connected yet", isPresented: $showingUnavailable) {
@@ -144,8 +151,9 @@ struct ChoghadiaPlusView: View {
                         .padding(11)
                         .background(Color(hex: "3A3270"), in: UnevenRoundedRectangle(topLeadingRadius: 16, bottomLeadingRadius: 16, bottomTrailingRadius: 16, topTrailingRadius: 4))
                     Label("Answered in 2 seconds", systemImage: "bolt.fill")
-                        .font(.chBody(11))
-                        .foregroundStyle(Color.chSaffron)
+                        .font(.chBodySemibold(13))
+                        .foregroundStyle(Color.chElectricCyan)
+                        .shadow(color: Color.chElectricCyan.opacity(0.45), radius: 6)
                         .padding(.leading, 4)
                 }
             }
@@ -228,15 +236,15 @@ struct ChoghadiaPlusView: View {
     }
 
     private func plusGlass(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(0.075))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.chCream.opacity(0.28), lineWidth: 1)
-            }
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return shape
+            .fill(
+                LinearGradient(
+                    colors: [Color(hex: "3B2E68").opacity(0.95), Color(hex: "241C48").opacity(0.97)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay { shape.stroke(Color.chCream.opacity(0.28), lineWidth: 1) }
     }
 }

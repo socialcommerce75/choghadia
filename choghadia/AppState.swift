@@ -11,4 +11,11 @@ final class AppState {
         case main
     }
     var screen: Screen = .launch
+
+    init() {
+        #if DEBUG
+        // Debug only: `-startMain` skips the Launch screen for quick testing.
+        if ProcessInfo.processInfo.arguments.contains("-startMain") { screen = .main }
+        #endif
+    }
 }
