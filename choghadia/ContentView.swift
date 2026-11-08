@@ -8,17 +8,22 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(AppState.self) private var appState
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            switch appState.screen {
+            case .launch:
+                LaunchView()
+            case .main:
+                MainTabView()
+            }
         }
-        .padding()
+        .animation(.easeInOut(duration: 0.5), value: appState.screen)
     }
 }
 
 #Preview {
     ContentView()
+        .environment(AppState())
 }

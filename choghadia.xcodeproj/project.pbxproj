@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		14412F8930A0E053009B1E84 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14412F8830A0E053009B1E84 /* Theme.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		14412F6230A0CC8F009B1E84 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		14412F5430A0CC8E009B1E84 /* choghadia.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = choghadia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		14412F6130A0CC8F009B1E84 /* choghadiaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = choghadiaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		14412F6B30A0CC8F009B1E84 /* choghadiaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = choghadiaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		14412F8830A0E053009B1E84 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +84,7 @@
 				14412F6430A0CC8F009B1E84 /* choghadiaTests */,
 				14412F6E30A0CC8F009B1E84 /* choghadiaUITests */,
 				14412F5530A0CC8E009B1E84 /* Products */,
+				14412F8830A0E053009B1E84 /* Theme.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -236,6 +242,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				14412F8930A0E053009B1E84 /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
