@@ -1,0 +1,1099 @@
+import CoreLocation
+import Observation
+import SwiftUI
+
+// MARK: - Replaceable Today data
+
+private enum DemoSlotLabel {
+    case favourable
+    case neutral
+    case holdOff
+
+    var title: String {
+        switch self {
+        case .favourable: "Favorable"
+        case .neutral: "Neutral"
+        case .holdOff: "Hold off"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .favourable: "checkmark"
+        case .neutral: "minus"
+        case .holdOff: "xmark"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .favourable: .chFavourable
+        case .neutral: .chNeutral
+        case .holdOff: .chHoldOff
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .favourable: .chFavourableTint
+        case .neutral: .chNeutralTint
+        case .holdOff: .chHoldOffTint
+        }
+    }
+
+    var textColor: Color {
+        switch self {
+        case .favourable: .chFavourableText
+        case .neutral: .chNeutralText
+        case .holdOff: .chHoldOffText
+        }
+    }
+}
+
+private struct TodaySlot: Identifiable {
+    let id: Int
+    let name: String
+    let start: String
+    let end: String
+    let startMinutes: Int
+    let endMinutes: Int
+    let label: DemoSlotLabel
+    let meaning: String
+
+    var range: String { "\(start) – \(end)" }
+}
+
+private enum TodayDemoData {
+    static let date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 8))!
+    static let timeZone = TimeZone(identifier: "America/New_York")!
+    static let sunriseMinutes = 6 * 60 + 29
+    static let sunsetMinutes = 16 * 60 + 42
+    static let nowMinutes = 11 * 60 + 48
+    static let currentSlot = 4
+
+    static let slots: [TodaySlot] = [
+        .init(id: 0, name: "Udveg", start: "6:29 AM", end: "7:46 AM", startMinutes: 389, endMinutes: 466, label: .holdOff, meaning: "Restless energy. Routine work is fine; fresh starts are better left for later."),
+        .init(id: 1, name: "Chal", start: "7:46 AM", end: "9:02 AM", startMinutes: 466, endMinutes: 542, label: .neutral, meaning: "Movement and change. A fair window for travel and errands."),
+        .init(id: 2, name: "Labh", start: "9:02 AM", end: "10:19 AM", startMinutes: 542, endMinutes: 619, label: .favourable, meaning: "Gain and progress. A strong window for business and trade."),
+        .init(id: 3, name: "Amrit", start: "10:19 AM", end: "11:36 AM", startMinutes: 619, endMinutes: 696, label: .favourable, meaning: "The most supportive window of the day, good for almost anything."),
+        .init(id: 4, name: "Kaal", start: "11:36 AM", end: "12:52 PM", startMinutes: 696, endMinutes: 772, label: .holdOff, meaning: "Heavy and slow. Things started here tend to drag."),
+        .init(id: 5, name: "Shubh", start: "12:52 PM", end: "2:09 PM", startMinutes: 772, endMinutes: 849, label: .favourable, meaning: "Auspicious and steady. Good for commitments and purchases."),
+        .init(id: 6, name: "Rog", start: "2:09 PM", end: "3:25 PM", startMinutes: 849, endMinutes: 925, label: .holdOff, meaning: "Strain and friction. Keep plans light."),
+        .init(id: 7, name: "Udveg", start: "3:25 PM", end: "4:42 PM", startMinutes: 925, endMinutes: 1002, label: .holdOff, meaning: "Restless energy. Routine work is fine; fresh starts are better left for later."),
+        .init(id: 8, name: "Shubh", start: "4:42 PM", end: "6:26 PM", startMinutes: 1002, endMinutes: 1106, label: .favourable, meaning: "Auspicious and steady. Good for commitments and purchases."),
+        .init(id: 9, name: "Amrit", start: "6:26 PM", end: "8:09 PM", startMinutes: 1106, endMinutes: 1209, label: .favourable, meaning: "The most supportive window of the day, good for almost anything."),
+        .init(id: 10, name: "Chal", start: "8:09 PM", end: "9:53 PM", startMinutes: 1209, endMinutes: 1313, label: .neutral, meaning: "Movement and change. A fair window for travel and errands."),
+        .init(id: 11, name: "Rog", start: "9:53 PM", end: "11:36 PM", startMinutes: 1313, endMinutes: 1416, label: .holdOff, meaning: "Strain and friction. Keep plans light."),
+        .init(id: 12, name: "Kaal", start: "11:36 PM", end: "1:20 AM", startMinutes: 1416, endMinutes: 1520, label: .holdOff, meaning: "Heavy and slow. Things started here tend to drag."),
+        .init(id: 13, name: "Labh", start: "1:20 AM", end: "3:03 AM", startMinutes: 1520, endMinutes: 1623, label: .favourable, meaning: "Gain and progress. A strong window for business and trade."),
+        .init(id: 14, name: "Udveg", start: "3:03 AM", end: "4:47 AM", startMinutes: 1623, endMinutes: 1727, label: .holdOff, meaning: "Restless energy. Routine work is fine; fresh starts are better left for later."),
+        .init(id: 15, name: "Shubh", start: "4:47 AM", end: "6:30 AM", startMinutes: 1727, endMinutes: 1830, label: .favourable, meaning: "Auspicious and steady. Good for commitments and purchases.")
+    ]
+
+    static func ribbonPosition(for slot: TodaySlot) -> CGFloat {
+        CGFloat(slot.startMinutes - sunriseMinutes) / 1440
+    }
+
+    static func currentRibbonPosition() -> CGFloat {
+        CGFloat(nowMinutes - sunriseMinutes) / 1440
+    }
+}
+
+// MARK: - Local places
+
+private struct SavedPlace: Identifiable, Codable, Equatable {
+    var id: String { name + timeZoneID }
+    let name: String
+    let subtitle: String
+    let latitude: Double
+    let longitude: Double
+    let timeZoneID: String
+
+    static let storageKey = "choghadia.savedPlaces.v1"
+
+    static let cityDirectory: [SavedPlace] = [
+        .init(name: "Ahmedabad", subtitle: "Gujarat, India", latitude: 23.0225, longitude: 72.5714, timeZoneID: "Asia/Kolkata"),
+        .init(name: "Bengaluru", subtitle: "Karnataka, India", latitude: 12.9716, longitude: 77.5946, timeZoneID: "Asia/Kolkata"),
+        .init(name: "Boston", subtitle: "Massachusetts, United States", latitude: 42.3601, longitude: -71.0589, timeZoneID: "America/New_York"),
+        .init(name: "Chicago", subtitle: "Illinois, United States", latitude: 41.8781, longitude: -87.6298, timeZoneID: "America/Chicago"),
+        .init(name: "Delhi", subtitle: "India", latitude: 28.6139, longitude: 77.2090, timeZoneID: "Asia/Kolkata"),
+        .init(name: "London", subtitle: "United Kingdom", latitude: 51.5072, longitude: -0.1276, timeZoneID: "Europe/London"),
+        .init(name: "Los Angeles", subtitle: "California, United States", latitude: 34.0522, longitude: -118.2437, timeZoneID: "America/Los_Angeles"),
+        .init(name: "Mumbai", subtitle: "Maharashtra, India", latitude: 19.0760, longitude: 72.8777, timeZoneID: "Asia/Kolkata"),
+        .init(name: "New York", subtitle: "New York, United States", latitude: 40.7128, longitude: -74.0060, timeZoneID: "America/New_York"),
+        .init(name: "Toronto", subtitle: "Ontario, Canada", latitude: 43.6532, longitude: -79.3832, timeZoneID: "America/Toronto")
+    ]
+
+    static func load() -> [SavedPlace] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let places = try? JSONDecoder().decode([SavedPlace].self, from: data) else { return [] }
+        return places
+    }
+
+    static func save(_ places: [SavedPlace]) {
+        guard let data = try? JSONEncoder().encode(places) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
+    }
+}
+
+@MainActor
+@Observable
+private final class LocationAccess: NSObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    var authorization: CLAuthorizationStatus
+    var latitude: Double?
+    var longitude: Double?
+
+    override init() {
+        authorization = .notDetermined
+        super.init()
+        manager.delegate = self
+        authorization = manager.authorizationStatus
+        if authorization == .authorizedAlways || authorization == .authorizedWhenInUse {
+            manager.requestLocation()
+        }
+    }
+
+    var isAuthorized: Bool {
+        authorization == .authorizedAlways || authorization == .authorizedWhenInUse
+    }
+
+    func requestPermission() {
+        manager.requestWhenInUseAuthorization()
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        authorization = manager.authorizationStatus
+        if authorization == .authorizedAlways || authorization == .authorizedWhenInUse {
+            manager.requestLocation()
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let coordinate = locations.last?.coordinate else { return }
+        latitude = coordinate.latitude
+        longitude = coordinate.longitude
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) { }
+}
+
+// MARK: - Today screen
+
+struct TodayView: View {
+    @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var location = LocationAccess()
+    @State private var savedPlaces = SavedPlace.load()
+    @State private var selectedPlace: SavedPlace?
+    @State private var showingPlaces = false
+    @State private var showingLocationAlert = false
+    @State private var showingSlot: Int? = TodayDemoData.currentSlot
+    @State private var showEarlierSlots = true
+    @State private var autoScrolled = false
+    @State private var pulse = false
+    @State private var arcDrawn = false
+    @State private var sunProgress: CGFloat = 0
+    @State private var shouldAnimateArcOnEntry = true
+
+    private let pageInset = CH.pagePadding
+    private var nowSlot: TodaySlot { TodayDemoData.slots[TodayDemoData.currentSlot] }
+
+    var body: some View {
+        ZStack {
+            Image("Background-Diya")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+
+            ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            header
+                            locationPrompt
+                                .padding(.horizontal, pageInset)
+                                .padding(.top, 8)
+                            heroCard
+                                .padding(.horizontal, pageInset)
+                                .padding(.top, 8)
+                            DayRibbonCard(
+                                selectedSlot: showingSlot ?? TodayDemoData.currentSlot,
+                                pulse: pulse,
+                                onSelect: { slot in selectSlot(slot, proxy: proxy) }
+                            )
+                            .padding(.horizontal, pageInset)
+                            .padding(.top, 14)
+                            timeline(proxy: proxy)
+                                .padding(.horizontal, pageInset)
+                                .padding(.top, 14)
+                            // Keep the final slot and its boundary above the floating tab bar.
+                            Color.clear.frame(height: 120)
+                        }
+                    }
+                    .scrollIndicators(.hidden)
+                    .safeAreaPadding(.top, 20)
+                    .onAppear {
+                        guard !autoScrolled else { return }
+                        autoScrolled = true
+                        Task { @MainActor in
+                            // Let the arc build and sun sweep finish before moving the page.
+                            try? await Task.sleep(for: reduceMotion ? .milliseconds(150) : .milliseconds(1_600))
+                            guard !Task.isCancelled else { return }
+                            await Task.yield()
+                            for attempt in 0..<2 {
+                                if attempt > 0 {
+                                    try? await Task.sleep(for: .milliseconds(300))
+                                }
+                                if reduceMotion {
+                                    proxy.scrollTo(scrollTarget(for: TodayDemoData.currentSlot), anchor: .center)
+                                } else {
+                                    withAnimation(.easeInOut(duration: 0.8)) {
+                                        proxy.scrollTo(scrollTarget(for: TodayDemoData.currentSlot), anchor: .center)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+        .background(Color.chInk.ignoresSafeArea())
+        .preferredColorScheme(.dark)
+        .sheet(isPresented: $showingPlaces) {
+            CityPickerSheet(savedPlaces: $savedPlaces, selectedPlace: $selectedPlace)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .alert("Turn on Location", isPresented: $showingLocationAlert) {
+            Button("Open Settings") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                openURL(url)
+            }
+            Button("Choose a city") { showingPlaces = true }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Choghadia uses your location to show timings for your area. You can also choose a city and keep using the app without location access.")
+        }
+        .onChange(of: savedPlaces) { _, newValue in SavedPlace.save(newValue) }
+        .onAppear {
+            if shouldAnimateArcOnEntry {
+                shouldAnimateArcOnEntry = false
+                playArcEntrance()
+            }
+            if !reduceMotion {
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
+            }
+        }
+        .onDisappear { shouldAnimateArcOnEntry = true }
+    }
+
+    private func playArcEntrance() {
+        let destination = CGFloat(TodayDemoData.nowMinutes - TodayDemoData.sunriseMinutes) /
+            CGFloat(TodayDemoData.sunsetMinutes - TodayDemoData.sunriseMinutes)
+        arcDrawn = false
+        sunProgress = 0
+        guard !reduceMotion else {
+            arcDrawn = true
+            sunProgress = destination
+            return
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(80))
+            guard !Task.isCancelled else { return }
+            arcDrawn = true
+            withAnimation(.spring(response: 1.05, dampingFraction: 0.78).delay(0.10)) {
+                sunProgress = destination
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(TodayDemoData.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
+                    .font(.chHeadingMedium(23))
+                    .foregroundStyle(.white)
+                Button {
+                    showingPlaces = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location"))
+                            .font(.chBodyMedium(13))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(minHeight: CH.minTarget)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Location: \(selectedPlace?.name ?? (location.isAuthorized ? "Your location" : "Choose your location")). Change location")
+            }
+            Spacer()
+        }
+        .padding(.horizontal, pageInset + 2)
+        .padding(.top, 48)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private var locationPrompt: some View {
+        if selectedPlace == nil && !location.isAuthorized {
+            LocationPromptCard(
+                isDenied: location.authorization == .denied || location.authorization == .restricted,
+                turnOn: {
+                    if location.authorization == .notDetermined {
+                        location.requestPermission()
+                    } else {
+                        showingLocationAlert = true
+                    }
+                },
+                chooseCity: { showingPlaces = true }
+            )
+        }
+    }
+
+    private var heroCard: some View {
+        GlassCard(cornerRadius: 22, padding: 17, tone: .heroWarm) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("Right now")
+                        .font(.chBodyMedium(13))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Text("11:48 AM · EST")
+                        .font(.chBody(12))
+                        .foregroundStyle(.white)
+                }
+
+                SunArcView(
+                    currentSlot: TodayDemoData.currentSlot,
+                    pulse: pulse,
+                    arcDrawn: arcDrawn,
+                    sunProgress: sunProgress,
+                    reduceMotion: reduceMotion
+                )
+                    .frame(height: 158)
+                    .padding(.top, 2)
+
+                HStack {
+                    Label("Sunrise  6:29 AM", systemImage: "sunrise")
+                    Spacer(minLength: 8)
+                    Label("Sunset  4:42 PM", systemImage: "sunset")
+                }
+                .font(.chBody(11))
+                .foregroundStyle(.white)
+                .labelStyle(.titleAndIcon)
+
+                HStack(alignment: .top, spacing: 10) {
+                    SlotStatusChip(label: nowSlot.label)
+                    Text("Not a good time to begin something new, like signing, buying or launching. Routine tasks are fine.")
+                        .font(.chBody(13))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 14)
+
+                HStack(spacing: 9) {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color.chSaffron)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Better time to begin")
+                            .font(.chBody(11))
+                            .foregroundStyle(.white)
+                        Text("Shubh from 12:52 PM")
+                            .font(.chBodyMedium(14))
+                            .foregroundStyle(.white)
+                    }
+                    Spacer(minLength: 2)
+                    Text("in 1h 04m")
+                        .font(.chBodyMedium(12))
+                        .foregroundStyle(Color.chSaffron)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(.top, 12)
+            }
+        }
+    }
+
+    private func timeline(proxy: ScrollViewProxy) -> some View {
+        GlassCard(cornerRadius: 24, padding: 11, tone: .recessed) {
+            VStack(spacing: 0) {
+                Toggle(isOn: $showEarlierSlots) {
+                    Text(showEarlierSlots ? "Hide earlier time slots" : "Show earlier time slots")
+                        .font(.chBody(13))
+                        .foregroundStyle(.white)
+                }
+                .tint(Color.chSaffron)
+                .padding(.horizontal, 4)
+                .frame(minHeight: 44)
+
+                let visibleSlots = TodayDemoData.slots.filter { showEarlierSlots || $0.id >= TodayDemoData.currentSlot }
+                ForEach(visibleSlots) { slot in
+                    VStack(spacing: 0) {
+                        TimelineBoundary(
+                            time: slot.start,
+                            dotColor: slot.label.color,
+                            isCurrent: slot.id == TodayDemoData.currentSlot,
+                            isFirst: slot.id == visibleSlots.first?.id,
+                            topIsPast: slot.id <= TodayDemoData.currentSlot,
+                            bottomIsPast: slot.id < TodayDemoData.currentSlot
+                        )
+                        TimelineSlotRow(
+                            slot: slot,
+                            isCurrent: slot.id == TodayDemoData.currentSlot,
+                            isPast: slot.id < TodayDemoData.currentSlot,
+                            isExpanded: showingSlot == slot.id,
+                            timezone: "EST",
+                            toggle: {
+                                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.3)) {
+                                    showingSlot = showingSlot == slot.id ? nil : slot.id
+                                }
+                            },
+                            askAI: {
+                                // The AI tab and Plus gating are implemented in a later screen pass.
+                            }
+                        )
+                    }
+                    .id(scrollTarget(for: slot.id))
+                }
+                if let last = visibleSlots.last {
+                    TimelineBoundary(
+                        time: last.end,
+                        dotColor: last.label.color,
+                        isCurrent: false,
+                        isFirst: false,
+                        topIsPast: last.id < TodayDemoData.currentSlot,
+                        bottomIsPast: false
+                    )
+                }
+            }
+        }
+        .accessibilityIdentifier("today.timeline")
+    }
+
+    private func selectSlot(_ id: Int, proxy: ScrollViewProxy) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.3)) {
+            showEarlierSlots = id >= TodayDemoData.currentSlot ? showEarlierSlots : true
+            showingSlot = id
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if reduceMotion {
+                proxy.scrollTo(scrollTarget(for: id), anchor: .center)
+            } else {
+                withAnimation(.easeInOut(duration: 0.7)) { proxy.scrollTo(scrollTarget(for: id), anchor: .center) }
+            }
+        }
+    }
+
+    private func scrollTarget(for slotID: Int) -> String { "today-slot-\(slotID)" }
+}
+
+// MARK: - Reusable glass and status components
+
+private enum GlassTone: Equatable {
+    case standard
+    case recessed
+    case heroWarm
+}
+
+private struct GlassCard<Content: View>: View {
+    let cornerRadius: CGFloat
+    let padding: CGFloat
+    var tone: GlassTone = .standard
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(padding)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                shape
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        shape.fill(
+                            LinearGradient(
+                                colors: gradientColors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    }
+                    .overlay { shape.fill(Color.white.opacity(0.035)) }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.chCream.opacity(0.28), lineWidth: 1)
+            }
+    }
+
+    private var gradientColors: [Color] {
+        switch tone {
+        case .standard:
+            [Color(hex: "403568").opacity(0.52), Color(hex: "211B45").opacity(0.62)]
+        case .recessed:
+            [Color(hex: "110D29").opacity(0.86), Color(hex: "1B163B").opacity(0.85)]
+        case .heroWarm:
+            [Color(hex: "795B27").opacity(0.62), Color(hex: "382847").opacity(0.80)]
+        }
+    }
+}
+
+private struct SlotStatusChip: View {
+    let label: DemoSlotLabel
+
+    var body: some View {
+        Label(label.title, systemImage: label.symbol)
+            .font(.chBodyMedium(11))
+            .foregroundStyle(label.textColor)
+            .padding(.horizontal, 9)
+            .frame(minHeight: 27)
+            .background(label.tint, in: Capsule())
+            .accessibilityElement(children: .combine)
+    }
+}
+
+private struct LocationPromptCard: View {
+    let isDenied: Bool
+    let turnOn: () -> Void
+    let chooseCity: () -> Void
+
+    var body: some View {
+        GlassCard(cornerRadius: 18, padding: 13) {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "location.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Color.chSaffron)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(isDenied ? "Location is off" : "Set your location")
+                            .font(.chBodySemibold(14))
+                            .foregroundStyle(.white)
+                        Text("Use your location for local timings, or choose a city instead.")
+                            .font(.chBody(12))
+                            .foregroundStyle(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button(action: turnOn) {
+                        Text(isDenied ? "Turn on Location" : "Use my location")
+                            .font(.chBodyMedium(12))
+                            .foregroundStyle(Color.chInk)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(Color.chSaffron, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    Button(action: chooseCity) {
+                        Text("Choose a city")
+                            .font(.chBodyMedium(12))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.chCream.opacity(0.3), lineWidth: 1))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Arc visualization
+
+private struct SunArcView: View {
+    let currentSlot: Int
+    let pulse: Bool
+    var arcDrawn: Bool
+    var sunProgress: CGFloat
+    let reduceMotion: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            let size = geometry.size
+            let center = CGPoint(x: size.width / 2, y: size.height * 0.92)
+            let radius = min(size.width * 0.43, size.height * 0.72)
+
+            ZStack {
+                Path { horizon in
+                    horizon.move(to: CGPoint(x: 12, y: center.y))
+                    horizon.addLine(to: CGPoint(x: size.width - 12, y: center.y))
+                }
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+
+                ForEach(0..<8, id: \.self) { index in
+                    let slot = TodayDemoData.slots[index]
+                    let opacity = index < currentSlot ? 0.42 : 1
+                    ArcSegmentShape(index: index)
+                        .trim(from: 0, to: arcDrawn ? 1 : 0)
+                        .stroke(
+                            slot.label.color.opacity(opacity),
+                            style: StrokeStyle(lineWidth: index == currentSlot ? 11 : 7, lineCap: .round)
+                        )
+                        .animation(
+                            reduceMotion ? nil : .easeOut(duration: 0.22).delay(Double(index) * 0.12),
+                            value: arcDrawn
+                        )
+                }
+
+                let angle = CGFloat.pi - sunProgress * CGFloat.pi
+                let sun = CGPoint(x: center.x + radius * cos(angle), y: center.y - radius * sin(angle))
+                Circle()
+                    .fill(Color.chSaffron.opacity(pulse ? 0.18 : 0.10))
+                    .frame(width: 34, height: 34)
+                    .position(sun)
+                    .animation(reduceMotion ? nil : .spring(response: 1.05, dampingFraction: 0.78).delay(0.10), value: sunProgress)
+                Circle()
+                    .fill(Color.chGlassTitle)
+                    .frame(width: 24, height: 24)
+                    .overlay(Circle().stroke(Color.chSaffron, lineWidth: 3))
+                    .position(sun)
+                    .animation(reduceMotion ? nil : .spring(response: 1.05, dampingFraction: 0.78).delay(0.10), value: sunProgress)
+
+                VStack(spacing: 6) {
+                    Spacer().frame(height: size.height * 0.56)
+                    Text("Kaal")
+                        .font(.chHeadingMedium(28))
+                        .foregroundStyle(Color.chElectricCyan)
+                    Text("until 12:52 PM")
+                        .font(.chBody(12))
+                        .foregroundStyle(.white)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Daylight slots. Now Kaal, until 12:52 PM")
+    }
+}
+
+private struct ArcSegmentShape: Shape {
+    let index: Int
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.height * 0.92)
+        let radius = min(rect.width * 0.43, rect.height * 0.72)
+        let segmentAngle = CGFloat.pi / 8
+        let gapAngle: CGFloat = 0.09
+        let start = CGFloat.pi - CGFloat(index) * segmentAngle - gapAngle / 2
+        let end = CGFloat.pi - CGFloat(index + 1) * segmentAngle + gapAngle / 2
+        let pointOnArc: (CGFloat) -> CGPoint = { angle in
+            CGPoint(x: center.x + radius * cos(angle), y: center.y - radius * sin(angle))
+        }
+
+        var path = Path()
+        path.move(to: pointOnArc(start))
+        for step in 1...32 {
+            let progress = CGFloat(step) / 32
+            let angle = start + (end - start) * progress
+            path.addLine(to: pointOnArc(angle))
+        }
+        return path
+    }
+}
+
+// MARK: - Day ribbon
+
+private struct DayRibbonCard: View {
+    let selectedSlot: Int
+    let pulse: Bool
+    let onSelect: (Int) -> Void
+
+    private let dayWidth = CGFloat(TodayDemoData.sunsetMinutes - TodayDemoData.sunriseMinutes) / 1440
+    private let currentPosition = TodayDemoData.currentRibbonPosition()
+    private let gradient = LinearGradient(
+        stops: [
+            .init(color: Color(hex: "F2A273"), location: 0),
+            .init(color: Color(hex: "FFD166"), location: 0.10),
+            .init(color: Color(hex: "FFD166"), location: 0.16),
+            .init(color: Color(hex: "78D0F2"), location: 0.19),
+            .init(color: Color(hex: "4DB8E8"), location: 0.34),
+            .init(color: Color(hex: "F6AE60"), location: 0.37),
+            .init(color: Color(hex: "EF805E"), location: 0.46),
+            .init(color: Color(hex: "A77ACF"), location: 0.49),
+            .init(color: Color(hex: "6654B8"), location: 0.58),
+            .init(color: Color(hex: "292254"), location: 0.62),
+            .init(color: Color(hex: "211A49"), location: 0.92),
+            .init(color: Color(hex: "D58AB2"), location: 0.96),
+            .init(color: Color(hex: "F2A273"), location: 1)
+        ], startPoint: .leading, endPoint: .trailing
+    )
+
+    var body: some View {
+        GlassCard(cornerRadius: 22, padding: 15) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Your day at a glance")
+                    .font(.chBodyMedium(14))
+                    .foregroundStyle(.white)
+                Text("Tap the ribbon to jump to a time of day.")
+                    .font(.chBody(11))
+                    .foregroundStyle(.white)
+                    .padding(.top, 3)
+
+                GeometryReader { geometry in
+                    ZStack(alignment: .topLeading) {
+                        Text("Now")
+                            .font(.chBodyMedium(10))
+                            .foregroundStyle(.white)
+                            .position(x: geometry.size.width * currentPosition, y: 7)
+                        Text("Mon 9 Nov")
+                            .font(.chBodyMedium(10))
+                            .foregroundStyle(.white)
+                            .position(x: geometry.size.width * 0.73, y: 7)
+
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(gradient)
+                            .frame(height: 28)
+                            .overlay {
+                                Canvas { context, size in
+                                    for slot in TodayDemoData.slots.dropFirst() {
+                                        let x = CGFloat(slot.startMinutes - TodayDemoData.sunriseMinutes) / 1440 * size.width
+                                        var tick = Path()
+                                        tick.move(to: CGPoint(x: x, y: 0))
+                                        tick.addLine(to: CGPoint(x: x, y: size.height))
+                                        context.stroke(tick, with: .color(Color.white.opacity(0.28)), lineWidth: 1)
+                                    }
+                                    var sunset = Path()
+                                    sunset.move(to: CGPoint(x: size.width * dayWidth, y: 0))
+                                    sunset.addLine(to: CGPoint(x: size.width * dayWidth, y: size.height))
+                                    context.stroke(sunset, with: .color(Color.white.opacity(0.66)), lineWidth: 1.5)
+                                    var midnight = Path()
+                                    midnight.move(to: CGPoint(x: size.width * 0.73, y: 0))
+                                    midnight.addLine(to: CGPoint(x: size.width * 0.73, y: size.height))
+                                    context.stroke(midnight, with: .color(.white.opacity(0.88)), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                            .offset(y: 20)
+
+                        Circle()
+                            .fill(Color.white.opacity(pulse ? 0.20 : 0.08))
+                            .frame(width: 20, height: 20)
+                            .position(x: geometry.size.width * currentPosition, y: 34)
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 12, height: 12)
+                            .overlay(Circle().stroke(Color.chInk, lineWidth: 2))
+                            .position(x: geometry.size.width * currentPosition, y: 34)
+
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { point in
+                                let fraction = min(max(point.x / geometry.size.width, 0), 0.999)
+                                let minute = TodayDemoData.sunriseMinutes + Int(fraction * 1440)
+                                let slot = TodayDemoData.slots.first(where: { minute >= $0.startMinutes && minute < $0.endMinutes })?.id ?? 15
+                                onSelect(slot)
+                            }
+                            .accessibilityElement()
+                            .accessibilityLabel("Time of day")
+                            .accessibilityValue("\(TodayDemoData.slots[selectedSlot].name), \(TodayDemoData.slots[selectedSlot].range)")
+                            .accessibilityHint("Swipe up or down to move between the sixteen slots")
+                            .accessibilityAdjustableAction { direction in
+                                let next: Int
+                                switch direction {
+                                case .increment: next = min(15, selectedSlot + 1)
+                                case .decrement: next = max(0, selectedSlot - 1)
+                                @unknown default: next = selectedSlot
+                                }
+                                onSelect(next)
+                            }
+                    }
+                }
+                .frame(height: 54)
+                .padding(.top, 7)
+
+                GeometryReader { geometry in
+                    ZStack {
+                        ribbonLabel("Morning").position(x: geometry.size.width * 0.115, y: 8)
+                        ribbonLabel("Afternoon").position(x: geometry.size.width * 0.33, y: 8)
+                        ribbonLabel("Evening").position(x: geometry.size.width * 0.495, y: 8)
+                        ribbonLabel("Night").position(x: geometry.size.width * 0.78, y: 8)
+                    }
+                }
+                .frame(height: 16)
+
+                LazyVGrid(
+                    columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
+                    alignment: .leading,
+                    spacing: 9
+                ) {
+                    legend("Most Favorable", color: Color(hex: "187A4B"))
+                    legend("Favorable", color: .chFavourable)
+                    legend("Neutral", color: .chNeutral)
+                    legend("Hold off", color: .chHoldOff)
+                }
+                .font(.chBody(11))
+                .foregroundStyle(.white)
+                .padding(.top, 12)
+                .padding(.bottom, 2)
+            }
+        }
+    }
+
+    private func ribbonLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.chBody(10))
+            .foregroundStyle(.white)
+            .fixedSize()
+            .accessibilityHidden(true)
+    }
+
+    private func legend(_ title: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Capsule().fill(color).frame(width: 5, height: 13)
+            Text(title)
+        }
+    }
+}
+
+// MARK: - Timeline cards
+
+private struct TimelineSlotRow: View {
+    let slot: TodaySlot
+    let isCurrent: Bool
+    let isPast: Bool
+    let isExpanded: Bool
+    let timezone: String
+    let toggle: () -> Void
+    let askAI: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: toggle) {
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(slot.name)
+                                .font(.chHeadingMedium(isCurrent ? 17 : 16))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text("\(slot.range) \(timezone)")
+                                .font(.chBody(11))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        HStack(spacing: 6) {
+                            if isCurrent {
+                                Text("Now")
+                                    .font(.chBodyMedium(10))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 9)
+                                    .frame(height: 22)
+                                    .background(Color.chInk, in: Capsule())
+                            }
+                            SlotStatusChip(label: slot.label)
+                        }
+                    }
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 22, height: 28)
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, 9)
+                .padding(.vertical, 11)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(slot.name), \(slot.range) \(timezone), \(slot.label.title)\(isCurrent ? ", now" : "")")
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            .accessibilityHint("Double-tap to \(isExpanded ? "collapse" : "expand") slot details")
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(slot.meaning)
+                        .font(.chBody(14))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(action: askAI) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "sparkles")
+                            Text("Ask the AI guide")
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 10))
+                        }
+                        .font(.chBodyMedium(12))
+                        .foregroundStyle(Color.chText)
+                        .padding(.horizontal, 13)
+                        .frame(minHeight: 38)
+                        .background(Color.chGlassTitle, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .background {
+            let shape = RoundedRectangle(cornerRadius: 17, style: .continuous)
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    shape.fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "51476F").opacity(isCurrent ? 0.72 : 0.64),
+                                Color(hex: "393153").opacity(0.76),
+                                slot.label.color.opacity(isCurrent ? 0.20 : 0.16)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                }
+                .overlay {
+                    shape.fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(isCurrent ? 0.065 : 0.045), .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                }
+        }
+        .overlay(alignment: .leading) {
+            UnevenRoundedRectangle(topLeadingRadius: 17, bottomLeadingRadius: 17)
+                .fill(slot.label.color)
+                .frame(width: 5)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(Color.chCream.opacity(isCurrent ? 0.34 : 0.21), lineWidth: 1)
+        }
+        .opacity(isPast ? 0.62 : 1)
+        .padding(.vertical, 2)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+}
+
+private struct TimelineBoundary: View {
+    let time: String
+    let dotColor: Color
+    let isCurrent: Bool
+    let isFirst: Bool
+    let topIsPast: Bool
+    let bottomIsPast: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !isFirst { connector(isSolid: topIsPast) }
+            HStack(spacing: 5) {
+                Circle().fill(dotColor).frame(width: 6, height: 6)
+                Text(time)
+                    .font(.chBodyMedium(11))
+                    .foregroundStyle(Color.chText)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 22)
+            .background(Color.chGlassTitle, in: Capsule())
+            .overlay {
+                if isCurrent {
+                    Capsule().stroke(Color.chSaffron.opacity(0.55), lineWidth: 1)
+                }
+            }
+            .accessibilityHidden(true)
+            connector(isSolid: bottomIsPast)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, isFirst ? 5 : 0)
+        .padding(.bottom, 1)
+    }
+
+    private func connector(isSolid: Bool) -> some View {
+        Rectangle()
+            .fill(isSolid ? Color.chCream.opacity(0.55) : Color.clear)
+            .overlay {
+                if !isSolid {
+                    Rectangle().stroke(style: StrokeStyle(lineWidth: 1, dash: [2, 2])).foregroundStyle(Color.chGlassNote.opacity(0.75))
+                }
+            }
+            .frame(width: 1, height: 10)
+            .accessibilityHidden(true)
+    }
+}
+
+// MARK: - City picker
+
+private struct CityPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var savedPlaces: [SavedPlace]
+    @Binding var selectedPlace: SavedPlace?
+    @State private var search = ""
+
+    private var results: [SavedPlace] {
+        let source = SavedPlace.cityDirectory
+        guard !search.isEmpty else { return source }
+        return source.filter { $0.name.localizedCaseInsensitiveContains(search) || $0.subtitle.localizedCaseInsensitiveContains(search) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if !savedPlaces.isEmpty {
+                    Section("Saved places") {
+                        ForEach(savedPlaces) { place in
+                            placeRow(place, isSaved: true)
+                        }
+                        .onDelete { offsets in
+                            let removingCurrent = offsets.contains { savedPlaces[$0] == selectedPlace }
+                            savedPlaces.remove(atOffsets: offsets)
+                            if removingCurrent { selectedPlace = nil }
+                        }
+                    }
+                }
+
+                Section("Choose a city") {
+                    ForEach(results.filter { place in !savedPlaces.contains(where: { $0.id == place.id }) }) { place in
+                        placeRow(place, isSaved: false)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Saved places")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $search, prompt: "Search cities")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func placeRow(_ place: SavedPlace, isSaved: Bool) -> some View {
+        Button {
+            if !isSaved { savedPlaces.append(place) }
+            selectedPlace = place
+            dismiss()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isSaved ? "bookmark.fill" : "mappin.and.ellipse")
+                    .foregroundStyle(Color.chSaffron)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(place.name).foregroundStyle(.primary)
+                    Text(place.subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if selectedPlace?.id == place.id {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.chFavourable)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.chInk.opacity(0.65))
+        .accessibilityLabel("Use and save \(place.name), \(place.subtitle)")
+    }
+}

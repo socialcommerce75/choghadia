@@ -6,7 +6,7 @@ import SwiftUI
 struct MainTabView: View {
     var body: some View {
         TabView {
-            Text("Today – coming next")
+            TodayView()
                 .tabItem { Label("Today", systemImage: "sun.max") }
 
             Text("AI Assistance – coming soon")
