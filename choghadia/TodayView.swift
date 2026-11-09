@@ -171,6 +171,7 @@ struct TodayView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppState.self) private var appState
 
     @State private var location = LocationAccess()
     @State private var placesStore = SavedPlacesStore.shared
@@ -483,7 +484,7 @@ struct TodayView: View {
                                 }
                             },
                             askAI: {
-                                // The AI tab and Plus gating are implemented in a later screen pass.
+                                appState.selectedTab = 1
                             }
                         )
                     }

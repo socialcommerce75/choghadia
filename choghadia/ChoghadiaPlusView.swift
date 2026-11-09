@@ -6,15 +6,45 @@ private enum PlusPlan: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
     var title: String { self == .yearly ? "Yearly" : "Monthly" }
-    var price: String { self == .yearly ? "$19.99" : "$2.99" }
-    var detail: String { self == .yearly ? "Save 44%" : "Cancel anytime" }
     var billing: String { self == .yearly ? "a year" : "a month" }
+    var storePlan: PlusStore.Plan { self == .yearly ? .yearly : .monthly }
+    /// Shown only until the App Store prices load.
+    var fallbackPrice: String { self == .yearly ? "$19.99" : "$2.99" }
 }
 
 struct ChoghadiaPlusView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPlan: PlusPlan = .yearly
-    @State private var showingUnavailable = false
+    @State private var store = PlusStore.shared
+    @State private var alertMessage: String?
+    @State private var infoKind: SettingsInfoKind?
+
+    private func price(_ plan: PlusPlan) -> String { store.displayPrice(for: plan.storePlan) ?? plan.fallbackPrice }
+    private func detail(_ plan: PlusPlan) -> String {
+        guard plan == .yearly else { return "Cancel anytime" }
+        return store.yearlySavingPercent.map { "Save \($0)%" } ?? "Best value"
+    }
+
+    private func subscribe() {
+        Task {
+            switch await store.purchase(selectedPlan.storePlan) {
+            case .success: dismiss()
+            case .pending: alertMessage = "Your purchase is waiting for approval. Plus will turn on as soon as it is approved."
+            case .cancelled: break
+            case .failed(let message): alertMessage = message
+            }
+        }
+    }
+
+    private func restore() {
+        Task {
+            switch await store.restore() {
+            case .restored: dismiss()
+            case .nothingToRestore: alertMessage = "We couldn't find a previous Plus purchase for this Apple ID."
+            case .failed(let message): alertMessage = message
+            }
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -48,7 +78,7 @@ struct ChoghadiaPlusView: View {
                         .padding(.top, 13)
                     planPicker
                         .padding(.top, 17)
-                    Text("Choghadia Plus renews automatically at \(selectedPlan.price) \(selectedPlan.billing) unless you cancel at least 24 hours before the end of the current period. Payment is charged to your Apple ID when you confirm the purchase. You can manage or cancel your subscription any time in your Apple ID account settings.")
+                    Text("Choghadia Plus renews automatically at \(price(selectedPlan)) \(selectedPlan.billing) unless you cancel at least 24 hours before the end of the current period. Payment is charged to your Apple ID when you confirm the purchase. You can manage or cancel your subscription any time in your Apple ID account settings.")
                         .font(.chBody(11))
                         .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
@@ -63,19 +93,39 @@ struct ChoghadiaPlusView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 5) {
-                Button { showingUnavailable = true } label: {
-                    Text("Subscribe for \(selectedPlan.price) \(selectedPlan.billing)")
-                        .font(.chBodySemibold(15))
-                        .foregroundStyle(Color.chInk)
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(Color.chSaffron, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                Button(action: subscribe) {
+                    Group {
+                        if store.isWorking {
+                            ProgressView().tint(Color.chInk)
+                        } else {
+                            Text(store.isPlus ? "Plus is active" : "Subscribe for \(price(selectedPlan)) \(selectedPlan.billing)")
+                        }
+                    }
+                    .font(.chBodySemibold(15))
+                    .foregroundStyle(Color.chInk)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(Color.chSaffron.opacity(store.isPlus ? 0.5 : 1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .disabled(store.isWorking || store.isPlus)
 
                 Button("Maybe later") { dismiss() }
                     .font(.chBodyMedium(14))
                     .foregroundStyle(Color.chSaffron)
-                    .frame(maxWidth: .infinity, minHeight: 42)
+                    .frame(maxWidth: .infinity, minHeight: 40)
+
+                HStack(spacing: 14) {
+                    Button("Restore purchase", action: restore)
+                    Text("·").accessibilityHidden(true)
+                    Button("Terms") { infoKind = .terms }
+                    Text("·").accessibilityHidden(true)
+                    Button("Privacy") { infoKind = .privacy }
+                }
+                .font(.chBody(12))
+                .foregroundStyle(.white)
+                .buttonStyle(.plain)
+                .frame(minHeight: 36)
+                .padding(.bottom, 4)
             }
             .padding(.horizontal, 22)
             .padding(.top, 10)
@@ -89,11 +139,17 @@ struct ChoghadiaPlusView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .alert("Subscriptions are not connected yet", isPresented: $showingUnavailable) {
+        .alert("Choghadia Plus", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Choghadia Plus will be available when App Store purchases are connected.")
+            Text(alertMessage ?? "")
         }
+        .sheet(item: $infoKind) { kind in
+            SettingsInfoSheet(kind: kind)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .task { await store.loadProducts() }
     }
 
     private var header: some View {
@@ -205,10 +261,10 @@ struct ChoghadiaPlusView: View {
                         Text(plan.title)
                             .font(.chBody(12))
                             .foregroundStyle(Color.chGlassTitle)
-                        Text(plan.price)
+                        Text(price(plan))
                             .font(.chBodySemibold(20))
                             .foregroundStyle(.white)
-                        Text(plan.detail)
+                        Text(detail(plan))
                             .font(.chBody(11))
                             .foregroundStyle(Color.chSaffron)
                     }

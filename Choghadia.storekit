@@ -1,0 +1,32 @@
+{
+  "identifier" : "A1C0FFEE",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : { "_failTransactionsEnabled" : false },
+  "subscriptionGroups" : [
+    {
+      "id" : "21500001",
+      "localizations" : [],
+      "name" : "Choghadia Plus",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [], "codeOffers" : [], "displayPrice" : "19.99", "familyShareable" : false,
+          "groupNumber" : 1, "internalID" : "6750000001", "introductoryOffer" : null,
+          "localizations" : [ { "description" : "AI guide answers, billed yearly", "displayName" : "Choghadia Plus Yearly", "locale" : "en_US" } ],
+          "productID" : "socialcommerce.choghadia.plus.yearly",
+          "recurringSubscriptionPeriod" : "P1Y", "referenceName" : "Plus Yearly",
+          "subscriptionGroupID" : "21500001", "type" : "RecurringSubscription", "winbackOffers" : []
+        },
+        {
+          "adHocOffers" : [], "codeOffers" : [], "displayPrice" : "2.99", "familyShareable" : false,
+          "groupNumber" : 1, "internalID" : "6750000002", "introductoryOffer" : null,
+          "localizations" : [ { "description" : "AI guide answers, billed monthly", "displayName" : "Choghadia Plus Monthly", "locale" : "en_US" } ],
+          "productID" : "socialcommerce.choghadia.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M", "referenceName" : "Plus Monthly",
+          "subscriptionGroupID" : "21500001", "type" : "RecurringSubscription", "winbackOffers" : []
+        }
+      ]
+    }
+  ],
+  "version" : { "major" : 4, "minor" : 0 }
+}

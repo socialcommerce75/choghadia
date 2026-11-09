@@ -27,6 +27,8 @@ struct SettingsView: View {
     @State private var destination: SettingsDestination?
     @State private var showingPlus = false
     #endif
+    @State private var store = PlusStore.shared
+    @State private var restoreMessage: String?
 
     private var languageName: String {
         LanguageChoice.all.first(where: { $0.id == preferredLanguage })?.name ?? "English"
@@ -73,7 +75,15 @@ struct SettingsView: View {
                             symbol: "arrow.clockwise",
                             title: "Restore Purchases",
                             subtitle: "Restore a previous Plus purchase",
-                            action: { }
+                            action: {
+                                Task {
+                                    switch await store.restore() {
+                                    case .restored: restoreMessage = "Plus is active again on this phone."
+                                    case .nothingToRestore: restoreMessage = "We couldn't find a previous Plus purchase for this Apple ID."
+                                    case .failed(let message): restoreMessage = message
+                                    }
+                                }
+                            }
                         )
                         Text("Already paid for Plus? Tap to get it back on this phone, for example after reinstalling or switching devices.")
                             .font(.chBody(12))
@@ -157,6 +167,11 @@ struct SettingsView: View {
         .fullScreenCover(isPresented: $showingPlus) {
             ChoghadiaPlusView()
         }
+        .alert("Restore Purchases", isPresented: Binding(get: { restoreMessage != nil }, set: { if !$0 { restoreMessage = nil } })) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(restoreMessage ?? "")
+        }
     }
 
     private var header: some View {
@@ -178,7 +193,7 @@ struct SettingsView: View {
             SettingsMenuRow(
                 symbol: "sparkles",
                 title: "Choghadia Plus",
-                subtitle: "Instant answers from the AI guide",
+                subtitle: store.isPlus ? "Plus is active. Thank you!" : "Instant answers from the AI guide",
                 action: { showingPlus = true }
             )
         }
@@ -572,10 +587,12 @@ private struct LanguagePickerSheet: View {
     }
 }
 
-private enum SettingsInfoKind {
+enum SettingsInfoKind: String, Identifiable {
     case privacy
     case terms
     case contact
+
+    var id: String { rawValue }
 
     var title: String {
         switch self {
@@ -613,7 +630,7 @@ private enum SettingsInfoKind {
     }
 }
 
-private struct SettingsInfoSheet: View {
+struct SettingsInfoSheet: View {
     @Environment(\.dismiss) private var dismiss
     let kind: SettingsInfoKind
 
